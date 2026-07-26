@@ -38,12 +38,15 @@ curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt install -y nodejs
 echo "   ✅ Node.js $(node -v) installed"
 
-# ------- 4. Install Python 3 + System Libraries -------
-echo "[4/8] Installing Python 3 and system dependencies..."
-apt install -y python3 python3-pip python3-venv
+# ------- 4. Install Python 3.10 + System Libraries -------
+echo "[4/8] Installing Python 3.10 and system dependencies..."
+apt install -y software-properties-common
+add-apt-repository ppa:deadsnakes/ppa -y
+apt update
+apt install -y python3.10 python3.10-venv python3.10-dev python3-pip
 # Libraries required by OpenCV, PaddlePaddle, pdf2image
-apt install -y poppler-utils libgl1-mesa-glx libglib2.0-0 libsm6 libxext6 libxrender-dev
-echo "   ✅ Python $(python3 --version) installed"
+apt install -y poppler-utils libgl1 libglib2.0-0 libsm6 libxext6 libxrender-dev
+echo "   ✅ Python 3.10 installed"
 
 # ------- 5. Install Nginx -------
 echo "[5/8] Installing Nginx..."

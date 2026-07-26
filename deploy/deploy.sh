@@ -31,8 +31,14 @@ echo "   ✅ Frontend built to dist/"
 # ------- 3. Setup Python Virtual Environment -------
 echo "[3/5] Setting up Python ML backend..."
 cd "$PROJECT_DIR/backend"
-if [ ! -d "venv" ]; then
-    echo "   Creating Python virtual environment..."
+if [ -d "venv" ]; then
+    echo "   Removing old incompatible venv..."
+    rm -rf venv
+fi
+echo "   Creating Python 3.10 virtual environment..."
+if command -v python3.10 &>/dev/null; then
+    python3.10 -m venv venv
+else
     python3 -m venv venv
 fi
 source venv/bin/activate
