@@ -29,7 +29,7 @@ export default function LoginPage() {
       return false;
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      toast.error("Please enter a valid email address.");
+      toast.error("Please enter a  address.");
       return false;
     }
     if (!form.password) {
