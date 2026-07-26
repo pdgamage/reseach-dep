@@ -10,8 +10,14 @@ import {
   CheckCircleIcon,
   AlertCircleIcon,
   InfoIcon,
-  XIcon } from
-'lucide-react';
+  XIcon
+} from 'lucide-react';
+
+/* ─── Poppins font — matches ApplicantJobList font style ─── */
+const poppinsFont = `
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+  .aj-poppins { font-family: 'Poppins', sans-serif; }
+`;
 export function ApplyJob() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -60,7 +66,7 @@ export function ApplyJob() {
   }
 
   const isClosed =
-  new Date(job.closingDate) < new Date() || job.status !== 'Open';
+    new Date(job.closingDate) < new Date() || job.status !== 'Open';
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     if (!isClosed) setIsDragging(true);
@@ -112,7 +118,7 @@ export function ApplyJob() {
       const token = localStorage.getItem("smarthire_token");
       const formData = new FormData();
       formData.append("cv", file);
-      
+
       const res = await fetch(`/api/jobs/${id}/apply`, {
         method: "POST",
         headers: {
@@ -120,12 +126,12 @@ export function ApplyJob() {
         },
         body: formData
       });
-      
+
       if (!res.ok) {
         const data = await res.json();
         throw new Error(data.message || "Failed to submit application");
       }
-      
+
       setIsSuccess(true);
       toast.success("Application submitted successfully!");
     } catch (err: any) {
@@ -138,38 +144,42 @@ export function ApplyJob() {
   };
   if (isSuccess) {
     return (
-      <div className="p-6 max-w-2xl mx-auto mt-10">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center">
-          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <CheckCircleIcon className="w-8 h-8" />
+      <>
+        <style>{poppinsFont}</style>
+        <div className="aj-poppins p-6 max-w-2xl mx-auto mt-10">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircleIcon className="w-8 h-8" />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">
+              Application Submitted!
+            </h2>
+            <p className="text-slate-600 mb-6">
+              Your CV was uploaded successfully for the{' '}
+              <span className="font-medium text-slate-900">{job.title}</span>{' '}
+              position. We will review your application and get back to you soon.
+            </p>
+            <button
+              onClick={() => navigate('/jobs')}
+              className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
+              Back to Jobs
+            </button>
           </div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-2">
-            Application Submitted!
-          </h2>
-          <p className="text-slate-600 mb-6">
-            Your CV was uploaded successfully for the{' '}
-            <span className="font-medium text-slate-900">{job.title}</span>{' '}
-            position. We will review your application and get back to you soon.
-          </p>
-          <button
-            onClick={() => navigate('/jobs')}
-            className="bg-indigo-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors">
-            
-            Back to Jobs
-          </button>
         </div>
-      </div>);
-
+      </>
+    );
   }
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      <button
-        onClick={() => navigate('/jobs')}
-        className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 mb-6 transition-colors">
-        
-        <ArrowLeftIcon className="w-4 h-4" />
-        Back to Jobs
-      </button>
+    <>
+      <style>{poppinsFont}</style>
+      <div className="aj-poppins p-6 max-w-3xl mx-auto">
+        <button
+          onClick={() => navigate('/jobs')}
+          className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-slate-900 mb-6 transition-colors">
+
+          <ArrowLeftIcon className="w-4 h-4" />
+          Back to Jobs
+        </button>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-6">
         <div className="p-6 border-b border-slate-200 bg-slate-50/50">
@@ -180,7 +190,7 @@ export function ApplyJob() {
               </h1>
               <div className="flex flex-wrap gap-2 mt-3">
                 {job.skills.map((skill) =>
-                <SkillTag key={skill} skill={skill} />
+                  <SkillTag key={skill} skill={skill} />
                 )}
               </div>
             </div>
@@ -228,7 +238,7 @@ export function ApplyJob() {
           </h3>
 
           {isClosed ?
-          <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 text-center">
+            <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 text-center">
               <AlertCircleIcon className="w-10 h-10 text-rose-500 mx-auto mb-3" />
               <h4 className="text-lg font-medium text-rose-900 mb-1">
                 Applications Closed
@@ -239,24 +249,24 @@ export function ApplyJob() {
               </p>
             </div> :
 
-          <>
+            <>
               <div
-              className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50'}`}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              onClick={() => !file && fileInputRef.current?.click()}>
-              
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors ${isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-slate-300 hover:border-indigo-400 bg-slate-50/50'}`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => !file && fileInputRef.current?.click()}>
+
                 <input
-                type="file"
-                ref={fileInputRef}
-                className="hidden"
-                accept=".pdf,image/jpeg,image/png"
-                onChange={handleFileSelect} />
-              
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  accept=".pdf,image/jpeg,image/png"
+                  onChange={handleFileSelect} />
+
 
                 {file ?
-              <div className="flex items-center justify-between bg-white p-4 rounded-lg border border-slate-200 shadow-sm max-w-md mx-auto">
+                  <div className="flex items-center justify-between bg-white p-4 rounded-lg border border-slate-200 shadow-sm max-w-md mx-auto">
                     <div className="flex items-center gap-3 overflow-hidden">
                       <div className="w-10 h-10 bg-indigo-100 text-indigo-600 rounded-lg flex items-center justify-center shrink-0">
                         <FileIcon className="w-5 h-5" />
@@ -271,17 +281,17 @@ export function ApplyJob() {
                       </div>
                     </div>
                     <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setFile(null);
-                  }}
-                  className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-colors">
-                  
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setFile(null);
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-colors">
+
                       <XIcon className="w-5 h-5" />
                     </button>
                   </div> :
 
-              <div className="cursor-pointer">
+                  <div className="cursor-pointer">
                     <div className="w-14 h-14 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
                       <UploadCloudIcon className="w-7 h-7" />
                     </div>
@@ -292,22 +302,22 @@ export function ApplyJob() {
                       PDF or Image only (max. 5MB)
                     </p>
                   </div>
-              }
+                }
               </div>
 
               {error &&
-            <p className="mt-3 text-sm text-rose-600 flex items-center gap-1.5">
+                <p className="mt-3 text-sm text-rose-600 flex items-center gap-1.5">
                   <AlertCircleIcon className="w-4 h-4" />
                   {error}
                 </p>
-            }
+              }
 
               <div className="mt-8 flex justify-end">
                 <button
-                onClick={handleSubmit}
-                disabled={!file || isSubmitting}
-                className="bg-indigo-600 text-white px-8 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm flex items-center gap-2">
-                
+                  onClick={handleSubmit}
+                  disabled={!file || isSubmitting}
+                  className="bg-indigo-600 text-white px-8 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm flex items-center gap-2">
+
                   {isSubmitting ? 'Uploading...' : 'Submit Application'}
                 </button>
               </div>
@@ -315,6 +325,8 @@ export function ApplyJob() {
           }
         </div>
       </div>
-    </div>);
+    </div>
+    </>
+  );
 
 }

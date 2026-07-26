@@ -1,17 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import {
-  SearchIcon,
-  FilterIcon,
-  AwardIcon,
-  BriefcaseIcon,
-  DownloadIcon,
-  ChevronDownIcon,
-  ChevronUpIcon,
-  CalendarIcon,
-  CheckCircle2Icon,
-  XCircleIcon,
-  ClockIcon,
-  RotateCcwIcon
+  Search,
+  Filter,
+  Award,
+  Briefcase,
+  Download,
+  ChevronDown,
+  ChevronUp,
+  Calendar,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -45,6 +46,46 @@ interface Job {
   title: string;
 }
 
+const pageStyles = `
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+  .cvs-root { font-family: 'Poppins', sans-serif; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes shimmer {
+    0%   { background-position: -600px 0; }
+    100% { background-position: 600px 0; }
+  }
+
+  .cvs-fade { animation: fadeIn 0.3s ease forwards; }
+
+  .cvs-shimmer {
+    background: linear-gradient(90deg, #f0f2f5 25%, #fafafa 50%, #f0f2f5 75%);
+    background-size: 600px 100%;
+    animation: shimmer 1.4s ease infinite;
+  }
+
+  .cvs-input {
+    width: 100%;
+    padding: 9px 14px;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 13px;
+    color: #0f172a;
+    background: #fff;
+    font-family: inherit;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  .cvs-input:focus {
+    outline: none;
+    border-color: #4f46e5 !important;
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+  }
+`;
+
 export function CVSearch() {
   const [applications, setApplications] = useState<Application[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -60,24 +101,23 @@ export function CVSearch() {
   // UI state
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  // Map job ID to title
   const getJobTitle = (jobId: string) => {
-    const job = jobs.find(j => j.id === jobId || j._id === jobId);
+    const job = jobs.find((j) => j.id === jobId || j._id === jobId);
     return job ? job.title : `Job #${jobId}`;
   };
 
   const fetchJobs = async () => {
     try {
-      const token = localStorage.getItem("smarthire_token");
-      const res = await fetch("/api/jobs", {
-        headers: { Authorization: `Bearer ${token}` }
+      const token = localStorage.getItem('smarthire_token');
+      const res = await fetch('/api/jobs', {
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         const data = await res.json();
         setJobs(data);
       }
     } catch (err) {
-      console.error("Error fetching jobs:", err);
+      console.error('Error fetching jobs:', err);
     }
   };
 
@@ -85,7 +125,7 @@ export function CVSearch() {
     if (e) e.preventDefault();
     setLoading(true);
     try {
-      const token = localStorage.getItem("smarthire_token");
+      const token = localStorage.getItem('smarthire_token');
       const params = new URLSearchParams();
       if (query.trim()) params.append('query', query.trim());
       if (skills.trim()) params.append('skills', skills.trim());
@@ -94,15 +134,15 @@ export function CVSearch() {
       if (status !== 'All') params.append('status', status);
 
       const res = await fetch(`/api/applications/search?${params.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!res.ok) throw new Error("Search request failed");
+      if (!res.ok) throw new Error('Search request failed');
       const data = await res.json();
       setApplications(data);
     } catch (err: any) {
       console.error(err);
-      toast.error("Failed to fetch applications matching search criteria");
+      toast.error('Failed to fetch applications matching search criteria');
     } finally {
       setLoading(false);
     }
@@ -115,7 +155,6 @@ export function CVSearch() {
     setMinScore(0);
     setStatus('All');
     setApplications([]);
-    // Run empty search to fetch all applications initially
     setTimeout(() => executeSearch(), 50);
   };
 
@@ -134,11 +173,11 @@ export function CVSearch() {
   const getStatusIcon = (statusName: string) => {
     switch (statusName) {
       case 'Shortlisted':
-        return <CheckCircle2Icon className="w-4 h-4 text-emerald-500" />;
+        return <CheckCircle2 className="w-4 h-4 text-emerald-500" />;
       case 'Rejected':
-        return <XCircleIcon className="w-4 h-4 text-rose-500" />;
+        return <XCircle className="w-4 h-4 text-rose-500" />;
       default:
-        return <ClockIcon className="w-4 h-4 text-amber-500" />;
+        return <Clock className="w-4 h-4 text-amber-500" />;
     }
   };
 
@@ -148,393 +187,478 @@ export function CVSearch() {
 
   const handleUpdateStatus = async (appId: string, newStatus: 'Shortlisted' | 'Rejected' | 'Pending') => {
     try {
-      const token = localStorage.getItem("smarthire_token");
+      const token = localStorage.getItem('smarthire_token');
       const res = await fetch(`/api/applications/${appId}/status`, {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           status: newStatus,
-          comment: `Status manually updated by HR from CV Search.`
-        })
+          comment: `Status manually updated by HR from CV Search.`,
+        }),
       });
 
       if (!res.ok) {
-        throw new Error("Failed to update status");
+        throw new Error('Failed to update status');
       }
 
       const updated = await res.json();
       toast.success(`Application updated to ${newStatus}`);
-      
-      // Update state
-      setApplications(prev => prev.map(app => (app.id === appId || app._id === appId) ? updated : app));
+      setApplications((prev) =>
+        prev.map((app) => (app.id === appId || app._id === appId ? updated : app))
+      );
     } catch (err: any) {
       console.error(err);
-      toast.error(err.message || "Failed to update status");
+      toast.error(err.message || 'Failed to update status');
     }
   };
 
   return (
-    <div className="p-6 max-w-7xl mx-auto font-sans">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">CV Search Engine</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Perform multi-criterion semantic searches across all processed candidate applications.
-        </p>
-      </div>
-
-      {/* Filter Card */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 mb-8">
-        <form onSubmit={executeSearch} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6">
-          {/* Main Keyword Search */}
-          <div className="lg:col-span-4">
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
-              Keyword Search (Name / Raw Text)
-            </label>
-            <div className="relative">
-              <SearchIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search candidates..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-              />
+    <>
+      <style>{pageStyles}</style>
+      <div className="cvs-root" style={{ background: '#f9fbfb', minHeight: '100vh', padding: '36px 24px 64px' }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          
+          {/* Header */}
+          <div className="cvs-fade" style={{ marginBottom: '28px' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', background: '#eef2ff', color: '#4f46e5', borderRadius: '20px', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>
+              <Sparkles style={{ width: '13px', height: '13px' }} />
+              Semantic Resume Indexing
             </div>
+            <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
+              CV Search Engine
+            </h1>
+            <p style={{ fontSize: '14px', color: '#64748b', marginTop: '4px', margin: 0 }}>
+              Perform multi-criterion semantic searches across candidate resume profiles.
+            </p>
           </div>
 
-          {/* Skills Filter */}
-          <div className="lg:col-span-3">
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
-              Required Skills (comma-separated)
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Python, SQL, React"
-              value={skills}
-              onChange={(e) => setSkills(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
+          {/* Filter Card */}
+          <div
+            className="cvs-fade"
+            style={{
+              background: '#fff',
+              border: '1px solid #e8eaed',
+              borderRadius: '16px',
+              padding: '24px',
+              marginBottom: '28px',
+              boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+              animationDelay: '40ms',
+            }}
+          >
+            <form onSubmit={executeSearch} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-5">
+              
+              {/* Keyword search */}
+              <div className="lg:col-span-4">
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                  Keyword Search
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Search style={{ width: '16px', height: '16px', color: '#94a3b8', position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
+                  <input
+                    type="text"
+                    placeholder="Candidate name or text..."
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="cvs-input"
+                    style={{ paddingLeft: '36px' }}
+                  />
+                </div>
+              </div>
 
-          {/* Roles Filter */}
-          <div className="lg:col-span-3">
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
-              Extracted Roles (comma-separated)
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Engineer, Analyst"
-              value={roles}
-              onChange={(e) => setRoles(e.target.value)}
-              className="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            />
-          </div>
+              {/* Skills filter */}
+              <div className="lg:col-span-3">
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                  Required Skills
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Python, React, SQL"
+                  value={skills}
+                  onChange={(e) => setSkills(e.target.value)}
+                  className="cvs-input"
+                />
+              </div>
 
-          {/* Status Filter */}
-          <div className="lg:col-span-2">
-            <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">
-              Application Status
-            </label>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-            >
-              <option value="All">All Statuses</option>
-              <option value="Pending">Pending</option>
-              <option value="Shortlisted">Shortlisted</option>
-              <option value="Rejected">Rejected</option>
-            </select>
-          </div>
+              {/* Roles filter */}
+              <div className="lg:col-span-3">
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                  Extracted Roles
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Engineer, Analyst"
+                  value={roles}
+                  onChange={(e) => setRoles(e.target.value)}
+                  className="cvs-input"
+                />
+              </div>
 
-          {/* Min Score Slider */}
-          <div className="lg:col-span-6 flex flex-col justify-center">
-            <div className="flex justify-between items-center mb-1">
-              <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">
-                Minimum Match Score
-              </label>
-              <span className="text-sm font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
-                {minScore}%
-              </span>
-            </div>
-            <input
-              type="range"
-              min="0"
-              max="100"
-              value={minScore}
-              onChange={(e) => setMinScore(Number(e.target.value))}
-              className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-            />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="lg:col-span-6 flex items-end justify-end gap-3">
-            <button
-              type="button"
-              onClick={handleReset}
-              className="px-4 py-2 border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 font-medium rounded-lg text-sm transition-colors flex items-center gap-1.5"
-            >
-              <RotateCcwIcon className="w-4 h-4" />
-              Reset Filters
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-lg text-sm transition-colors shadow-sm flex items-center gap-1.5"
-            >
-              <FilterIcon className="w-4 h-4" />
-              Apply Filters
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {/* Results Header */}
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-lg font-semibold text-slate-800">
-          Matched Candidates ({applications.length})
-        </h2>
-      </div>
-
-      {/* Results Listing */}
-      {loading ? (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
-          <div className="w-12 h-12 border-4 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4" />
-          <span className="text-sm text-slate-500">Searching matching resumes...</span>
-        </div>
-      ) : applications.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-12 text-center">
-          <BriefcaseIcon className="w-12 h-12 text-slate-300 mx-auto mb-4" />
-          <h3 className="text-base font-semibold text-slate-700">No applications matched</h3>
-          <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">
-            Try adjusting your keyword query, clearing tags, or resetting the minimum match score threshold.
-          </p>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-4">
-          {applications.map((app) => {
-            const appId = app.id || app._id;
-            const isExpanded = expandedId === appId;
-            return (
-              <div
-                key={appId}
-                className="bg-white rounded-xl border border-slate-200 hover:border-slate-300 transition-all shadow-sm overflow-hidden"
-              >
-                {/* Main Row */}
-                <div
-                  className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 cursor-pointer select-none"
-                  onClick={() => toggleExpand(appId)}
+              {/* Status filter */}
+              <div className="lg:col-span-2">
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                  Status
+                </label>
+                <select
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value)}
+                  className="cvs-input"
+                  style={{ cursor: 'pointer' }}
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-base font-semibold text-slate-900">{app.applicantName}</h3>
-                      {app.matchScore !== undefined && app.matchScore > 0 && (
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${getScoreColor(app.matchScore)}`}>
-                          {app.matchScore}% Match
-                        </span>
-                      )}
-                      <span className="flex items-center gap-1 text-xs font-medium text-slate-600 border border-slate-200 bg-slate-50 px-2 py-0.5 rounded-full">
-                        {getStatusIcon(app.status)}
-                        {app.status}
-                      </span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500 mt-1">
-                      <span className="flex items-center gap-1">
-                        <BriefcaseIcon className="w-3.5 h-3.5 text-slate-400" />
-                        Applied for: <span className="font-medium text-slate-700">{getJobTitle(app.jobId)}</span>
-                      </span>
-                      <span>•</span>
-                      <span>Applied: {new Date(app.createdAt).toLocaleDateString()}</span>
-                    </div>
-                  </div>
+                  <option value="All">All Statuses</option>
+                  <option value="Pending">Pending</option>
+                  <option value="Shortlisted">Shortlisted</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
 
-                  <div className="flex items-center gap-3 w-full md:w-auto justify-between md:justify-end border-t border-slate-100 md:border-0 pt-3 md:pt-0">
-                    {app.cvUrl && app.cvUrl !== '#' && (
-                      <a
-                        href={app.cvUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="p-2 border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors"
-                        title="Download CV"
-                      >
-                        <DownloadIcon className="w-4 h-4" />
-                      </a>
-                    )}
-                    <button
-                      className="p-2 border border-slate-200 text-slate-600 hover:text-indigo-600 rounded-lg hover:bg-indigo-50 transition-colors flex items-center gap-1.5 text-xs font-medium"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleExpand(appId);
+              {/* Min score slider */}
+              <div className="lg:col-span-6 flex flex-col justify-center">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Min. Match Score
+                  </label>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#4f46e5', background: '#eef2ff', padding: '2px 8px', borderRadius: '10px' }}>
+                    {minScore}%
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={minScore}
+                  onChange={(e) => setMinScore(Number(e.target.value))}
+                  style={{ accentColor: '#4f46e5', width: '100%', cursor: 'pointer' }}
+                />
+              </div>
+
+              {/* Action buttons */}
+              <div className="lg:col-span-6 flex items-end justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  style={{
+                    padding: '8px 16px',
+                    border: '1px solid #e2e8f0',
+                    background: '#fff',
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  <RotateCcw style={{ width: '14px', height: '14px' }} />
+                  Reset
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    padding: '8px 20px',
+                    background: '#4f46e5',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontFamily: 'inherit',
+                    boxShadow: '0 2px 8px rgba(79,70,229,0.25)',
+                  }}
+                >
+                  <Filter style={{ width: '14px', height: '14px' }} />
+                  Search
+                </button>
+              </div>
+
+            </form>
+          </div>
+
+          {/* Results count header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+              Matched Candidates ({applications.length})
+            </h2>
+          </div>
+
+          {/* Results Listing */}
+          {loading ? (
+            <div style={{ background: '#fff', border: '1px solid #e8eaed', borderRadius: '16px', padding: '48px 24px', textAlign: 'center' }}>
+              <div style={{ width: '36px', height: '36px', border: '3px solid #e0e7ff', borderTop: '3px solid #4f46e5', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+              <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 500 }}>Searching candidate resumes…</span>
+            </div>
+          ) : applications.length === 0 ? (
+            <div style={{ background: '#fff', border: '1px solid #e8eaed', borderRadius: '16px', padding: '48px 24px', textAlign: 'center' }}>
+              <div style={{ width: '56px', height: '56px', background: '#eef2ff', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#4f46e5' }}>
+                <Briefcase style={{ width: '26px', height: '26px' }} />
+              </div>
+              <h3 style={{ fontSize: '16px', fontWeight: 700, color: '#0f172a', marginBottom: '6px' }}>No candidates matched</h3>
+              <p style={{ fontSize: '13px', color: '#64748b', maxWidth: '360px', margin: '0 auto' }}>
+                Try adjusting your search criteria or resetting filters.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {applications.map((app) => {
+                const appId = app.id || app._id;
+                const isExpanded = expandedId === appId;
+                return (
+                  <div
+                    key={appId}
+                    className="cvs-fade"
+                    style={{
+                      background: '#fff',
+                      border: '1px solid #e8eaed',
+                      borderRadius: '14px',
+                      overflow: 'hidden',
+                      transition: 'border-color 0.15s, box-shadow 0.15s',
+                    }}
+                  >
+                    {/* Row header */}
+                    <div
+                      onClick={() => toggleExpand(appId)}
+                      style={{
+                        padding: '18px 22px',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '12px',
+                        cursor: 'pointer',
                       }}
                     >
-                      {isExpanded ? (
-                        <>
-                          Hide Details
-                          <ChevronUpIcon className="w-4 h-4" />
-                        </>
-                      ) : (
-                        <>
-                          View Details
-                          <ChevronDownIcon className="w-4 h-4" />
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
+                          <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#0f172a', margin: 0 }}>
+                            {app.applicantName}
+                          </h3>
+                          {app.matchScore !== undefined && app.matchScore > 0 && (
+                            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${getScoreColor(app.matchScore)}`}>
+                              {app.matchScore}% Match
+                            </span>
+                          )}
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: 600, padding: '2px 10px', borderRadius: '20px', background: '#f8fafc', border: '1px solid #e2e8f0', color: '#475569' }}>
+                            {getStatusIcon(app.status)}
+                            {app.status}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <Briefcase style={{ width: '13px', height: '13px' }} />
+                            Applied for: <strong style={{ color: '#0f172a' }}>{getJobTitle(app.jobId)}</strong>
+                          </span>
+                          <span>•</span>
+                          <span>Applied: {new Date(app.createdAt).toLocaleDateString()}</span>
+                        </div>
+                      </div>
 
-                {/* Expanded Details Panel */}
-                {isExpanded && (
-                  <div className="bg-slate-50/50 border-t border-slate-200 p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
-                    {/* Skills & Roles Column */}
-                    <div className="lg:col-span-7 flex flex-col gap-4">
-                      {/* Skills */}
-                      <div>
-                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                          Parsed Skills ({app.skills?.length || 0})
-                        </h4>
-                        {app.skills && app.skills.length > 0 ? (
-                          <div className="flex flex-wrap gap-1.5">
-                            {app.skills.map((s, i) => (
-                              <span
-                                key={i}
-                                className="text-xs bg-indigo-50 border border-indigo-100 text-indigo-700 px-2 py-0.5 rounded"
-                              >
-                                {s}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-xs text-slate-400 italic">No skills extracted.</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        {app.cvUrl && app.cvUrl !== '#' && (
+                          <a
+                            href={app.cvUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              padding: '6px 12px',
+                              border: '1px solid #e2e8f0',
+                              borderRadius: '8px',
+                              color: '#475569',
+                              textDecoration: 'none',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                            }}
+                          >
+                            <Download style={{ width: '14px', height: '14px' }} />
+                            CV
+                          </a>
                         )}
-                      </div>
-
-                      {/* Roles & Education */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                            Extracted Roles
-                          </h4>
-                          {app.roles && app.roles.length > 0 ? (
-                            <ul className="list-disc list-inside text-xs text-slate-700 space-y-1">
-                              {app.roles.map((r, i) => <li key={i}>{r}</li>)}
-                            </ul>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleExpand(appId);
+                          }}
+                          style={{
+                            padding: '6px 12px',
+                            border: '1px solid #e2e8f0',
+                            borderRadius: '8px',
+                            color: '#4f46e5',
+                            background: '#eef2ff',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontFamily: 'inherit',
+                          }}
+                        >
+                          {isExpanded ? (
+                            <>
+                              Hide Details <ChevronUp style={{ width: '14px', height: '14px' }} />
+                            </>
                           ) : (
-                            <span className="text-xs text-slate-400 italic">No roles extracted.</span>
+                            <>
+                              View Details <ChevronDown style={{ width: '14px', height: '14px' }} />
+                            </>
                           )}
-                        </div>
-
-                        <div>
-                          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
-                            Education details
-                          </h4>
-                          {app.education && app.education.length > 0 ? (
-                            <ul className="list-disc list-inside text-xs text-slate-700 space-y-1">
-                              {app.education.map((edu, i) => <li key={i}>{edu}</li>)}
-                            </ul>
-                          ) : (
-                            <span className="text-xs text-slate-400 italic">No education extracted.</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Manual Action Status */}
-                      <div className="border-t border-slate-200 pt-4 mt-2">
-                        <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">
-                          Manual HR Review Status Action
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={() => handleUpdateStatus(appId, 'Shortlisted')}
-                            disabled={app.status === 'Shortlisted'}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors ${
-                              app.status === 'Shortlisted'
-                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-                                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                            }`}
-                          >
-                            Mark Shortlisted
-                          </button>
-                          <button
-                            onClick={() => handleUpdateStatus(appId, 'Rejected')}
-                            disabled={app.status === 'Rejected'}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold shadow-sm transition-colors ${
-                              app.status === 'Rejected'
-                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200'
-                                : 'bg-rose-600 hover:bg-rose-700 text-white'
-                            }`}
-                          >
-                            Mark Rejected
-                          </button>
-                          <button
-                            onClick={() => handleUpdateStatus(appId, 'Pending')}
-                            disabled={app.status === 'Pending'}
-                            className={`px-3 py-1.5 border border-slate-300 text-slate-700 bg-white hover:bg-slate-50 rounded-lg text-xs font-semibold shadow-sm transition-colors ${
-                              app.status === 'Pending' ? 'opacity-50 cursor-not-allowed' : ''
-                            }`}
-                          >
-                            Reset to Pending
-                          </button>
-                        </div>
+                        </button>
                       </div>
                     </div>
 
-                    {/* Timeline Log Column */}
-                    <div className="lg:col-span-5 border-t lg:border-t-0 lg:border-l border-slate-200 pt-6 lg:pt-0 lg:pl-6">
-                      <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-1.5">
-                        <AwardIcon className="w-4 h-4 text-slate-400" />
-                        Application Status History Log
-                      </h4>
-
-                      {app.statusHistory && app.statusHistory.length > 0 ? (
-                        <div className="relative border-l border-slate-200 pl-4 ml-2 space-y-6">
-                          {app.statusHistory.map((item, i) => (
-                            <div key={i} className="relative">
-                              {/* Dot Icon */}
-                              <span className="absolute -left-[25px] top-0.5 bg-white border border-slate-300 rounded-full p-1 flex items-center justify-center">
-                                <span className={`w-1.5 h-1.5 rounded-full ${
-                                  item.status === 'Shortlisted' ? 'bg-emerald-500' :
-                                  item.status === 'Rejected' ? 'bg-rose-500' : 'bg-amber-500'
-                                }`} />
-                              </span>
-                              <div>
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="text-xs font-bold text-slate-800">
-                                    {item.status}
+                    {/* Expanded details */}
+                    {isExpanded && (
+                      <div style={{ background: '#fafafa', borderTop: '1px solid #e8eaed', padding: '22px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
+                        
+                        {/* Skills & Roles */}
+                        <div>
+                          <div style={{ marginBottom: '14px' }}>
+                            <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+                              Parsed Skills ({app.skills?.length || 0})
+                            </h4>
+                            {app.skills && app.skills.length > 0 ? (
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {app.skills.map((s, i) => (
+                                  <span key={i} style={{ fontSize: '11px', background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe', padding: '2px 8px', borderRadius: '14px', fontWeight: 500 }}>
+                                    {s}
                                   </span>
-                                  <span className="text-[10px] text-slate-400 flex items-center gap-0.5">
-                                    <CalendarIcon className="w-3 h-3" />
-                                    {new Date(item.updatedAt).toLocaleString()}
-                                  </span>
-                                </div>
-                                <p className="text-[10px] text-slate-500 mt-0.5">
-                                  By: {item.updatedBy}
-                                </p>
-                                {item.comment && (
-                                  <p className="text-xs text-slate-600 bg-slate-100/80 px-2 py-1.5 rounded mt-1 border border-slate-200/50 italic">
-                                    "{item.comment}"
-                                  </p>
-                                )}
+                                ))}
                               </div>
+                            ) : (
+                              <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>No skills extracted</span>
+                            )}
+                          </div>
+
+                          <div style={{ marginBottom: '16px' }}>
+                            <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                              Extracted Roles
+                            </h4>
+                            {app.roles && app.roles.length > 0 ? (
+                              <ul style={{ paddingLeft: '16px', margin: 0, fontSize: '12px', color: '#334155' }}>
+                                {app.roles.map((r, i) => (
+                                  <li key={i}>{r}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>No roles extracted</span>
+                            )}
+                          </div>
+
+                          {/* HR Status action buttons */}
+                          <div style={{ paddingTop: '12px', borderTop: '1px solid #e2e8f0' }}>
+                            <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+                              Manual Status Action
+                            </h4>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                              <button
+                                onClick={() => handleUpdateStatus(appId, 'Shortlisted')}
+                                disabled={app.status === 'Shortlisted'}
+                                style={{
+                                  padding: '5px 12px',
+                                  borderRadius: '8px',
+                                  fontSize: '12px',
+                                  fontWeight: 600,
+                                  border: 'none',
+                                  background: app.status === 'Shortlisted' ? '#f1f5f9' : '#16a34a',
+                                  color: app.status === 'Shortlisted' ? '#94a3b8' : '#fff',
+                                  cursor: app.status === 'Shortlisted' ? 'not-allowed' : 'pointer',
+                                  fontFamily: 'inherit',
+                                }}
+                              >
+                                Shortlist
+                              </button>
+                              <button
+                                onClick={() => handleUpdateStatus(appId, 'Rejected')}
+                                disabled={app.status === 'Rejected'}
+                                style={{
+                                  padding: '5px 12px',
+                                  borderRadius: '8px',
+                                  fontSize: '12px',
+                                  fontWeight: 600,
+                                  border: 'none',
+                                  background: app.status === 'Rejected' ? '#f1f5f9' : '#dc2626',
+                                  color: app.status === 'Rejected' ? '#94a3b8' : '#fff',
+                                  cursor: app.status === 'Rejected' ? 'not-allowed' : 'pointer',
+                                  fontFamily: 'inherit',
+                                }}
+                              >
+                                Reject
+                              </button>
+                              <button
+                                onClick={() => handleUpdateStatus(appId, 'Pending')}
+                                disabled={app.status === 'Pending'}
+                                style={{
+                                  padding: '5px 12px',
+                                  borderRadius: '8px',
+                                  fontSize: '12px',
+                                  fontWeight: 600,
+                                  border: '1px solid #cbd5e1',
+                                  background: '#fff',
+                                  color: app.status === 'Pending' ? '#94a3b8' : '#334155',
+                                  cursor: app.status === 'Pending' ? 'not-allowed' : 'pointer',
+                                  fontFamily: 'inherit',
+                                }}
+                              >
+                                Reset
+                              </button>
                             </div>
-                          ))}
+                          </div>
                         </div>
-                      ) : (
-                        <div className="text-center py-6 border border-dashed border-slate-200 rounded-lg">
-                          <ClockIcon className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                          <p className="text-xs text-slate-400 italic">No timeline history recorded.</p>
+
+                        {/* Status history timeline */}
+                        <div style={{ borderLeft: '1px solid #e2e8f0', paddingLeft: '20px' }}>
+                          <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <Award style={{ width: '14px', height: '14px' }} />
+                            Status History Log
+                          </h4>
+
+                          {app.statusHistory && app.statusHistory.length > 0 ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                              {app.statusHistory.map((item, i) => (
+                                <div key={i} style={{ fontSize: '12px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                                    <span style={{ fontWeight: 700, color: '#0f172a' }}>{item.status}</span>
+                                    <span style={{ fontSize: '10px', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                      <Calendar style={{ width: '10px', height: '10px' }} />
+                                      {new Date(item.updatedAt).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                  <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>By: {item.updatedBy}</p>
+                                  {item.comment && (
+                                    <p style={{ fontSize: '11px', color: '#475569', background: '#fff', padding: '4px 8px', borderRadius: '6px', border: '1px solid #e2e8f0', marginTop: '4px', fontStyle: 'italic' }}>
+                                      "{item.comment}"
+                                    </p>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <p style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>No timeline history recorded.</p>
+                          )}
                         </div>
-                      )}
-                    </div>
+
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            );
-          })}
+                );
+              })}
+            </div>
+          )}
+
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }
