@@ -1,0 +1,27 @@
+Python
+Java
+JavaScript
+React
+Node.js
+Firebase
+Flutter
+MySQL
+MongoDB
+HTML
+CSS
+Tailwind
+Git
+Docker
+Linux
+C
+C++
+Machine Learning
+TensorFlow
+PyTorch
+FastAPI
+Django
+Flask
+PHP
+JSP
+Oracle
+SQL

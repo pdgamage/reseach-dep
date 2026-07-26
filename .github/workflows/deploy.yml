@@ -1,0 +1,107 @@
+# ============================================================
+# SmartHire - GitHub Actions CI/CD Pipeline
+# Auto-deploys to EC2 on every push to 'main' branch
+# ============================================================
+# 
+# Required GitHub Secrets (Settings → Secrets → Actions):
+#   EC2_HOST          - Your EC2 public IP address
+#   EC2_USER          - ubuntu
+#   EC2_SSH_KEY       - Contents of your .pem private key file
+#   MONGODB_URI       - MongoDB Atlas connection string
+#   JWT_SECRET        - JWT signing secret
+#   CLOUDINARY_CLOUD_NAME
+#   CLOUDINARY_API_KEY
+#   CLOUDINARY_API_SECRET
+#   GEMINI_API_KEY
+# ============================================================
+
+name: Deploy SmartHire to AWS EC2
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger from GitHub UI
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # Step 1: Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Create .env file from GitHub Secrets
+      - name: Create .env file
+        run: |
+          cat > server/.env << EOF
+          PORT=5050
+          MONGODB_URI=${{ secrets.MONGODB_URI }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          CLOUDINARY_CLOUD_NAME=${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
+          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+          EOF
+
+      # Step 3: Setup SSH key
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/ec2_key
+          chmod 600 ~/.ssh/ec2_key
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      # Step 4: Sync project files to EC2 (excluding heavy/unnecessary files)
+      - name: Sync files to EC2
+        run: |
+          rsync -avz --delete \
+            --exclude 'node_modules' \
+            --exclude 'venv' \
+            --exclude '.venv' \
+            --exclude '__pycache__' \
+            --exclude 'frontend/dist' \
+            --exclude '.git' \
+            --exclude 'server/uploads/*.pdf' \
+            --exclude 'server/uploads/*.png' \
+            --exclude 'server/schedules.json' \
+            --exclude 'logs' \
+            -e "ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no" \
+            ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/smarthire/
+
+      # Step 5: Run deployment script on EC2
+      - name: Deploy on EC2
+        run: |
+          ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            'cd /home/ubuntu/smarthire && chmod +x deploy/deploy.sh && ./deploy/deploy.sh'
+
+      # Step 6: Health check
+      - name: Verify deployment
+        run: |
+          echo "Waiting 10 seconds for server to start..."
+          sleep 10
+          STATUS=$(ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no \
+            ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+            'curl -s -o /dev/null -w "%{http_code}" http://localhost:5050/api/auth/me')
+          
+          if [ "$STATUS" = "401" ]; then
+            echo "✅ Deployment successful! API is responding (401 = auth required, expected)"
+          else
+            echo "⚠️ Unexpected status code: $STATUS"
+            ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no \
+              ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+              'pm2 logs smarthire-api --lines 20 --nostream'
+            exit 1
+          fi
+
+      # Step 7: Show deployment info
+      - name: Deployment summary
+        run: |
+          echo "=========================================="
+          echo "  ✅ SmartHire deployed successfully!"
+          echo "  URL: http://${{ secrets.EC2_HOST }}"
+          echo "  Time: $(date)"
+          echo "=========================================="

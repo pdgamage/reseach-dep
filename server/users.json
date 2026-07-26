@@ -1,0 +1,29 @@
+[
+  {
+    "_id": "6a26ef5803495954d210dee9",
+    "name": "HR Manager",
+    "email": "hr@smarthire.com",
+    "password": "$2a$10$B66./4i/9LVUV3mFiHNrte7zLGNV4ljHKCXF2O/q0VbRXBbdEXieC",
+    "role": "hr",
+    "createdAt": "2026-06-08T16:35:36.450Z",
+    "updatedAt": "2026-06-08T16:35:36.451Z"
+  },
+  {
+    "_id": "6a27bebad3e2230be7fafae0",
+    "name": "ravindu hasith",
+    "email": "ravindu@gmail.com",
+    "password": "$2a$10$yiKRvbKZ7kmOqKUe9Gtc9.oQDqHJ59Gzr3eYA5Zj6VfG5kSa6JqLu",
+    "role": "hr",
+    "createdAt": "2026-06-09T07:20:26.522Z",
+    "updatedAt": "2026-06-09T07:20:26.524Z"
+  },
+  {
+    "_id": "6a27bf7fd3e2230be7fafae1",
+    "name": "Ravindu Hasith",
+    "email": "ravinduhasith7002@gmail.com",
+    "password": "$2a$10$bzR4CbgnzZQxtkmUAh9jO.vPMhfSLsY1TN/suhPOVeAQqaWxPpP7y",
+    "role": "applicant",
+    "createdAt": "2026-06-09T07:23:43.278Z",
+    "updatedAt": "2026-06-09T07:23:43.278Z"
+  }
+]

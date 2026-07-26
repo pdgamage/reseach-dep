@@ -1,0 +1,87 @@
+[
+  {
+    "_id": "j1",
+    "title": "Software Engineer",
+    "description": "We are looking for a skilled Software Engineer to join our core development team. You will be responsible for building scalable web applications and collaborating with cross-functional teams.",
+    "skills": [
+      "React",
+      "Node.js",
+      "TypeScript",
+      "SQL"
+    ],
+    "minEducation": "Bachelor's Degree",
+    "minExperience": 2,
+    "closingDate": "2026-06-17T15:46:31.476Z",
+    "status": "Closed",
+    "cvCount": 12,
+    "updatedAt": "2026-07-24T18:09:03.736Z"
+  },
+  {
+    "_id": "j2",
+    "title": "Marketing Executive",
+    "description": "Join our dynamic marketing team to drive brand awareness and execute digital campaigns across various platforms.",
+    "skills": [
+      "Digital Marketing",
+      "SEO",
+      "Content Creation",
+      "Communication"
+    ],
+    "minEducation": "Diploma",
+    "minExperience": 1,
+    "closingDate": "2026-06-13T15:46:31.477Z",
+    "status": "Closed",
+    "cvCount": 8,
+    "updatedAt": "2026-07-24T18:09:03.736Z"
+  },
+  {
+    "_id": "j3",
+    "title": "Accounts Officer",
+    "description": "Seeking a detail-oriented Accounts Officer to manage daily financial transactions, payroll, and reporting.",
+    "skills": [
+      "Excel",
+      "Accounting",
+      "QuickBooks",
+      "Attention to Detail"
+    ],
+    "minEducation": "Bachelor's Degree",
+    "minExperience": 3,
+    "closingDate": "2026-06-08T15:46:31.477Z",
+    "status": "Closed",
+    "cvCount": 24,
+    "updatedAt": "2026-07-24T18:09:03.736Z"
+  },
+  {
+    "_id": "j4",
+    "title": "Data Analyst",
+    "description": "Looking for a Data Analyst to interpret data and turn it into information which can offer ways to improve a business.",
+    "skills": [
+      "Python",
+      "SQL",
+      "Tableau",
+      "Statistics"
+    ],
+    "minEducation": "Bachelor's Degree",
+    "minExperience": 2,
+    "closingDate": "2026-05-31T15:46:31.477Z",
+    "status": "Closed",
+    "cvCount": 45,
+    "updatedAt": "2026-07-24T18:09:03.736Z"
+  },
+  {
+    "_id": "j5",
+    "title": "HR Coordinator",
+    "description": "We need an HR Coordinator to facilitate daily HR functions like keeping track of employees records and supporting the interview process.",
+    "skills": [
+      "Communication",
+      "Teamwork",
+      "MS Office",
+      "Organization"
+    ],
+    "minEducation": "Diploma",
+    "minExperience": 1,
+    "closingDate": "2026-06-24T15:46:31.477Z",
+    "status": "Closed",
+    "cvCount": 3,
+    "updatedAt": "2026-07-24T18:09:03.736Z"
+  }
+]

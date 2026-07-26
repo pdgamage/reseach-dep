@@ -1,0 +1,55 @@
+# ===========================
+# SmartHire - Root .gitignore
+# ===========================
+
+# Node.js
+node_modules/
+npm-debug.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+venv/
+.venv/
+
+# Environment files (NEVER commit secrets)
+.env
+.env.local
+.env.production
+
+# Build output
+frontend/dist/
+backend/output/
+backend/images/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Uploads (user data)
+server/uploads/*.pdf
+server/uploads/*.png
+server/uploads/*.jpg
+!server/uploads/.gitkeep
+
+# Local DB files (generated at runtime)
+server/schedules.json
+
+# Logs
+logs/
+*.log
+
+# ML Model files (too large for GitHub - upload to EC2 manually via SCP)
+backend/models/bert/model.bin
+backend/models/best.pt
+backend/models/bert/meta.bin
+backend/models/model-best/

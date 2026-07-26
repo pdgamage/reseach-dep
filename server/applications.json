@@ -1,0 +1,35 @@
+[
+  {
+    "_id": "cv1",
+    "jobId": "j3",
+    "applicantId": "a1",
+    "applicantName": "Kasun Perera",
+    "fileName": "Kasun_Perera_CV.pdf",
+    "cvUrl": "/api/uploads/mock_cv1.pdf",
+    "status": "Pending",
+    "createdAt": "2026-06-27T11:05:34.881Z",
+    "updatedAt": "2026-06-27T11:05:34.882Z"
+  },
+  {
+    "_id": "cv2",
+    "jobId": "j3",
+    "applicantId": "a2",
+    "applicantName": "Amandi Silva",
+    "fileName": "Amandi_Resume_2023.pdf",
+    "cvUrl": "/api/uploads/mock_cv2.pdf",
+    "status": "Pending",
+    "createdAt": "2026-06-28T11:05:34.882Z",
+    "updatedAt": "2026-06-28T11:05:34.882Z"
+  },
+  {
+    "_id": "cv3",
+    "jobId": "j3",
+    "applicantId": "a3",
+    "applicantName": "Nuwan Fernando",
+    "fileName": "NuwanF_CV.pdf",
+    "cvUrl": "/api/uploads/mock_cv3.pdf",
+    "status": "Pending",
+    "createdAt": "2026-06-29T11:05:34.882Z",
+    "updatedAt": "2026-06-29T11:05:34.882Z"
+  }
+]
