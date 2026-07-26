@@ -22,19 +22,33 @@ const pageStyles = `
   .sr-back-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     font-size: 13px;
     font-weight: 600;
-    color: #64748b;
-    background: none;
-    border: none;
+    color: #475569;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 8px 16px;
+    margin-bottom: 24px;
     cursor: pointer;
     font-family: inherit;
-    padding: 6px 0;
-    margin-bottom: 20px;
-    transition: color 0.15s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  .sr-back-btn:hover { color: #4f46e5; }
+  .sr-back-btn:hover {
+    background: #eef2ff;
+    color: #4f46e5;
+    border-color: #c7d2fe;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.12);
+    transform: translateX(-3px);
+  }
+  .sr-back-btn svg {
+    transition: transform 0.2s ease;
+  }
+  .sr-back-btn:hover svg {
+    transform: translateX(-2px);
+  }
 `;
 
 export function ShortlistResults() {

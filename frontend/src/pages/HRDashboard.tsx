@@ -8,8 +8,6 @@ import {
   Search,
   Plus,
   Filter,
-  TrendingUp,
-  Sparkles,
 } from 'lucide-react';
 import { Job, JobStatus } from '../data/mockData';
 import { JobCard } from '../components/JobCard';

@@ -5,7 +5,7 @@ import {
   CheckCircle,
   Search,
   Archive,
-  Sparkles,
+  
 } from 'lucide-react';
 import { Job } from '../data/mockData';
 import { JobCard } from '../components/JobCard';
@@ -115,10 +115,7 @@ export function ClosedJobs() {
           
           {/* Header */}
           <div className="cj-fade" style={{ marginBottom: '32px' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', background: '#eef2ff', color: '#4f46e5', borderRadius: '20px', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>
-              <Sparkles style={{ width: '13px', height: '13px' }} />
-              Archive & AI Evaluations
-            </div>
+            
             <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
               Closed Jobs
             </h1>

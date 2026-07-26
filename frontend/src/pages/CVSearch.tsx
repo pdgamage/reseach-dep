@@ -12,7 +12,6 @@ import {
   XCircle,
   Clock,
   RotateCcw,
-  Sparkles,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -223,10 +222,7 @@ export function CVSearch() {
           
           {/* Header */}
           <div className="cvs-fade" style={{ marginBottom: '28px' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', background: '#eef2ff', color: '#4f46e5', borderRadius: '20px', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>
-              <Sparkles style={{ width: '13px', height: '13px' }} />
-              Semantic Resume Indexing
-            </div>
+            
             <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
               CV Search Engine
             </h1>

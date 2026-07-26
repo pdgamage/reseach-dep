@@ -41,7 +41,7 @@ export function Sidebar({ isCollapsed: externalCollapsed, onToggle }: SidebarPro
       icon: LayoutDashboard,
     },
     {
-      name: 'CV Search Engine',
+      name: 'CV Search',
       path: '/search-cvs',
       icon: Search,
     },

@@ -5,7 +5,6 @@ import {
   CheckCircle,
   AlertCircle,
   Users,
-  Sparkles,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -223,10 +222,7 @@ export function InterviewSchedule() {
           
           {/* Header */}
           <div className="isch-fade" style={{ marginBottom: '32px' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', background: '#eef2ff', color: '#4f46e5', borderRadius: '20px', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>
-              <Sparkles style={{ width: '13px', height: '13px' }} />
-              Interview Logistics
-            </div>
+            
             <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
               Interview Scheduling
             </h1>
@@ -294,7 +290,7 @@ export function InterviewSchedule() {
                     </div>
 
                     <div style={{ marginTop: '20px', paddingTop: '12px', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: '#4f46e5' }}>
-                      <span>{schedule ? 'Modify Schedule' : 'Schedule Now'} →</span>
+                      <span>{schedule ? 'Modify Schedule' : 'Schedule Now'} </span>
                     </div>
                   </div>
                 );

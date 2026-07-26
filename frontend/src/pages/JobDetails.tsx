@@ -6,7 +6,6 @@ import { SkillTag } from '../components/SkillTag';
 import { CountdownBadge } from '../components/CountdownBadge';
 import toast from 'react-hot-toast';
 import {
-  ArrowLeft,
   FileText,
   Download,
   Sparkles,
@@ -138,8 +137,8 @@ export function JobDetails() {
             cv.status === 'Shortlisted'
               ? true
               : cv.status === 'Rejected'
-              ? false
-              : (cv.isRecommended ?? (cv.matchScore >= 70)),
+                ? false
+                : (cv.isRecommended ?? (cv.matchScore >= 70)),
         };
       }
       const mockResult = jobResults.find(
@@ -180,16 +179,13 @@ export function JobDetails() {
       <style>{pageStyles}</style>
       <div className="jd-root" style={{ background: '#f9fbfb', minHeight: '100vh', padding: '36px 24px 64px' }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+
           
-          <button className="jd-back-btn" onClick={() => navigate('/dashboard')}>
-            <ArrowLeft style={{ width: '16px', height: '16px' }} />
-            Back to Dashboard
-          </button>
 
           {/* Main Job Details Card */}
           <div className="jd-fade" style={{ background: '#fff', border: '1px solid #e8eaed', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.03)', marginBottom: '28px' }}>
             <div style={{ padding: '32px' }}>
-              
+
               <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px', marginBottom: '20px' }}>
                 <div>
                   <h1 style={{ fontSize: '24px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', marginBottom: '10px' }}>
@@ -218,8 +214,8 @@ export function JobDetails() {
                       boxShadow: '0 4px 14px rgba(79,70,229,0.25)',
                     }}
                   >
-                    <Sparkles style={{ width: '15px', height: '15px' }} />
-                    View Full AI Results
+
+                    View Full  Results
                     <ExternalLink style={{ width: '13px', height: '13px' }} />
                   </Link>
                 )}

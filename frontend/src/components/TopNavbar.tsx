@@ -52,9 +52,16 @@ export function TopNavbar({ isApplicantView = false }: TopNavbarProps) {
             </div>
           </div>
 
-          
-
-          
+          {isApplicantView && (
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-rose-600    transition-all cursor-pointer ml-2"
+              title="Logout"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Logout</span>
+            </button>
+          )}
         </div>
       </header>
     </>

@@ -6,7 +6,6 @@ import {
   Briefcase,
   Calendar,
   GraduationCap,
-  ArrowLeft,
   PlusCircle,
 } from 'lucide-react';
 
@@ -23,6 +22,37 @@ const pageStyles = `
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .cj-fade { animation: fadeIn 0.3s ease forwards; }
+
+  .cj-back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #475569;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 8px 16px;
+    margin-bottom: 24px;
+    cursor: pointer;
+    font-family: inherit;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .cj-back-btn:hover {
+    background: #eef2ff;
+    color: #4f46e5;
+    border-color: #c7d2fe;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.12);
+    transform: translateX(-3px);
+  }
+  .cj-back-btn svg {
+    transition: transform 0.2s ease;
+  }
+  .cj-back-btn:hover svg {
+    transform: translateX(-2px);
+  }
 
   .cj-input {
     width: 100%;
@@ -167,26 +197,7 @@ export function CreateJob() {
         <div style={{ maxWidth: '840px', margin: '0 auto' }}>
           
           {/* Back button */}
-          <button
-            onClick={() => navigate('/dashboard')}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: '#64748b',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              marginBottom: '20px',
-              padding: 0,
-            }}
-          >
-            <ArrowLeft style={{ width: '16px', height: '16px' }} />
-            Back to Dashboard
-          </button>
+          
 
           {/* Header title */}
           <div className="cj-fade" style={{ marginBottom: '28px' }}>
