@@ -47,8 +47,8 @@ source venv/bin/activate
 export TMPDIR="/home/ubuntu/pip_tmp"
 mkdir -p "$TMPDIR"
 
-pip install --upgrade pip -q
-pip install -r requirements.txt -q
+pip install --no-cache-dir --upgrade pip -q
+pip install --no-cache-dir -r requirements.txt -q
 
 # Clean up temp dir
 rm -rf "$TMPDIR"
