@@ -42,8 +42,16 @@ else
     python3 -m venv venv
 fi
 source venv/bin/activate
+
+# Redirect pip temporary directory to use root volume instead of limited /tmp RAM disk
+export TMPDIR="/home/ubuntu/pip_tmp"
+mkdir -p "$TMPDIR"
+
 pip install --upgrade pip -q
 pip install -r requirements.txt -q
+
+# Clean up temp dir
+rm -rf "$TMPDIR"
 python3 -m spacy download en_core_web_sm -q 2>/dev/null || true
 deactivate
 echo "   ✅ Python environment ready"
