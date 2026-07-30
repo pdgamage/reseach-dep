@@ -3,6 +3,7 @@ import { FiEye, FiEyeOff } from "react-icons/fi";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import { GoogleLogin } from "@react-oauth/google";
 
 interface FormState {
   email: string;
@@ -13,6 +14,49 @@ interface FormState {
 export default function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    if (!credentialResponse.credential) {
+      toast.error("Google authentication failed. No credential received.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          credential: credentialResponse.credential,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setSuccess(true);
+        toast.success("Google sign-in successful! Redirecting...");
+        login(data.user, data.token);
+
+        setTimeout(() => {
+          if (data.user.role === "hr") {
+            navigate("/dashboard");
+          } else {
+            navigate("/jobs");
+          }
+        }, 1000);
+      } else {
+        toast.error(data.message || "Google authentication failed.");
+      }
+    } catch (error) {
+      console.error("Google auth request error:", error);
+      toast.error("Unable to connect to the server. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const [form, setForm] = useState<FormState>({
     email: "",
@@ -242,6 +286,30 @@ export default function LoginPage() {
                 "Sign In to SmartHire"
               )}
             </button>
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-slate-200" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-white px-3 text-slate-400 font-medium">Or continue with</span>
+              </div>
+            </div>
+
+            {/* Google Authentication (Applicant Only) */}
+            <div className="flex flex-col items-center justify-center w-full min-h-[44px]">
+              <GoogleLogin
+                onSuccess={handleGoogleSuccess}
+                onError={() => toast.error("Google Sign-In failed. Please try again.")}
+                shape="rectangular"
+                theme="outline"
+                size="large"
+                width="100%"
+                text="signin_with"
+              />
+              <span className="text-[11px] text-slate-400 mt-1">Applicant sign-in</span>
+            </div>
 
             {/* Switch to register */}
             <div className="text-center mt-6 text-sm text-slate-500">

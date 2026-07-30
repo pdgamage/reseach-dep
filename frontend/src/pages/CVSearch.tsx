@@ -12,6 +12,8 @@ import {
   XCircle,
   Clock,
   RotateCcw,
+  Eye,
+  X,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -33,8 +35,10 @@ interface Application {
   status: 'Pending' | 'Shortlisted' | 'Rejected';
   matchScore?: number;
   skills?: string[];
+  skillsMatched?: string[];
   roles?: string[];
   education?: string[];
+  rawText?: string;
   statusHistory?: StatusHistoryItem[];
   createdAt: string;
 }
@@ -43,6 +47,12 @@ interface Job {
   id: string;
   _id: string;
   title: string;
+  description?: string;
+  skills?: string[];
+  minEducation?: string;
+  minExperience?: number;
+  location?: string;
+  type?: string;
 }
 
 const pageStyles = `
@@ -99,10 +109,21 @@ export function CVSearch() {
 
   // UI state
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   const getJobTitle = (jobId: string) => {
     const job = jobs.find((j) => j.id === jobId || j._id === jobId);
     return job ? job.title : `Job #${jobId}`;
+  };
+
+  const handleOpenJobModal = (jobId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const job = jobs.find((j) => j.id === jobId || j._id === jobId);
+    if (job) {
+      setSelectedJob(job);
+    } else {
+      toast.error('Job details not found');
+    }
   };
 
   const fetchJobs = async () => {
@@ -137,8 +158,17 @@ export function CVSearch() {
       });
 
       if (!res.ok) throw new Error('Search request failed');
-      const data = await res.json();
-      setApplications(data);
+      const data: Application[] = await res.json();
+      
+      // Sort candidates by matched skills count & match score descending
+      const sorted = [...data].sort((a, b) => {
+        const matchedA = (a.skillsMatched || []).length;
+        const matchedB = (b.skillsMatched || []).length;
+        if (matchedB !== matchedA) return matchedB - matchedA;
+        return (b.matchScore || 0) - (a.matchScore || 0);
+      });
+
+      setApplications(sorted);
     } catch (err: any) {
       console.error(err);
       toast.error('Failed to fetch applications matching search criteria');
@@ -178,6 +208,54 @@ export function CVSearch() {
       default:
         return <Clock className="w-4 h-4 text-amber-500" />;
     }
+  };
+
+  const formatSkillsList = (list?: string[]): string[] => {
+    if (!list || !Array.isArray(list)) return [];
+    const res: string[] = [];
+    const junkPatterns = [
+      'non-related referees',
+      'team player',
+      'communication management',
+      'problem solving creativity',
+      'referees',
+      'soft skills',
+    ];
+
+    list.forEach((item) => {
+      if (typeof item === 'string') {
+        const parts = item.split(/[,;\n]/).map((p) => p.trim()).filter(Boolean);
+        parts.forEach((p) => {
+          const lower = p.toLowerCase();
+          if (p.length <= 35 && !junkPatterns.some((junk) => lower.includes(junk))) {
+            res.push(p);
+          }
+        });
+      }
+    });
+
+    const seen = new Set<string>();
+    return res.filter((s) => {
+      const lower = s.toLowerCase();
+      if (seen.has(lower)) return false;
+      seen.add(lower);
+      return true;
+    });
+  };
+
+  const formatRolesList = (roles?: string[]): string[] => {
+    if (!roles || !Array.isArray(roles)) return [];
+    const cleanRoles = roles
+      .filter((r) => typeof r === 'string' && r.trim().length > 0)
+      .map((r) => r.trim());
+
+    const seen = new Set<string>();
+    return cleanRoles.filter((r) => {
+      const lower = r.toLowerCase();
+      if (seen.has(lower)) return false;
+      seen.add(lower);
+      return true;
+    });
   };
 
   const toggleExpand = (id: string) => {
@@ -407,6 +485,19 @@ export function CVSearch() {
               {applications.map((app) => {
                 const appId = app.id || app._id;
                 const isExpanded = expandedId === appId;
+                const targetJob = jobs.find((j) => j.id === app.jobId || j._id === app.jobId);
+                const requiredJobSkills = formatSkillsList(targetJob?.skills || []);
+                const parsedSkills = formatSkillsList(app.skills);
+                const matchedSkills = formatSkillsList(app.skillsMatched);
+                const extractedRoles = formatRolesList(app.roles);
+
+                const candidateSkillSet = new Set(
+                  [...matchedSkills, ...parsedSkills].map((s) => s.toLowerCase())
+                );
+                const missingSkills = requiredJobSkills.filter(
+                  (reqSkill) => !candidateSkillSet.has(reqSkill.toLowerCase())
+                );
+
                 return (
                   <div
                     key={appId}
@@ -448,9 +539,31 @@ export function CVSearch() {
                           </span>
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', fontSize: '12px', color: '#64748b', marginTop: '6px' }}>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             <Briefcase style={{ width: '13px', height: '13px' }} />
-                            Applied for: <strong style={{ color: '#0f172a' }}>{getJobTitle(app.jobId)}</strong>
+                            Applied for:{' '}
+                            <button
+                              type="button"
+                              onClick={(e) => handleOpenJobModal(app.jobId, e)}
+                              style={{
+                                background: '#eef2ff',
+                                border: '1px solid #c7d2fe',
+                                color: '#4338ca',
+                                borderRadius: '6px',
+                                padding: '2px 8px',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontFamily: 'inherit',
+                              }}
+                              title="Click to view full job post details"
+                            >
+                              {getJobTitle(app.jobId)}
+                              <Eye style={{ width: '12px', height: '12px' }} />
+                            </button>
                           </span>
                           <span>•</span>
                           <span>Applied: {new Date(app.createdAt).toLocaleDateString()}</span>
@@ -520,37 +633,52 @@ export function CVSearch() {
                         
                         {/* Skills & Roles */}
                         <div>
-                          <div style={{ marginBottom: '14px' }}>
-                            <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
-                              Parsed Skills ({app.skills?.length || 0})
-                            </h4>
-                            {app.skills && app.skills.length > 0 ? (
+                          {/* Matched Technical Skills */}
+                          {matchedSkills.length > 0 && (
+                            <div style={{ marginBottom: '14px' }}>
+                              <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                
+                                Technical Skills 
+                              </h4>
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                {app.skills.map((s, i) => (
-                                  <span key={i} style={{ fontSize: '11px', background: '#eef2ff', color: '#4338ca', border: '1px solid #c7d2fe', padding: '2px 8px', borderRadius: '14px', fontWeight: 500 }}>
+                                {matchedSkills.map((s, i) => (
+                                  <span key={i} style={{ fontSize: '11px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '2px 9px', borderRadius: '14px', fontWeight: 600 }}>
                                     {s}
                                   </span>
                                 ))}
                               </div>
-                            ) : (
-                              <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>No skills extracted</span>
-                            )}
-                          </div>
+                            </div>
+                          )}
 
-                          <div style={{ marginBottom: '16px' }}>
-                            <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
-                              Extracted Roles
-                            </h4>
-                            {app.roles && app.roles.length > 0 ? (
+                          {/* Missing Job Requirements (Red Color) */}
+                          {missingSkills.length > 0 && (
+                            <div style={{ marginBottom: '14px' }}>
+                              
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {missingSkills.map((s, i) => (
+                                  <span key={i} style={{ fontSize: '11px', background: '#fff1f2', color: '#be123c', border: '1px solid #fecdd3', padding: '2px 9px', borderRadius: '14px', fontWeight: 600 }}>
+                                    {s}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+
+
+                          {/* Extracted Roles */}
+                          {extractedRoles.length > 0 && (
+                            <div style={{ marginBottom: '16px' }}>
+                              <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                                Extracted Roles ({extractedRoles.length})
+                              </h4>
                               <ul style={{ paddingLeft: '16px', margin: 0, fontSize: '12px', color: '#334155' }}>
-                                {app.roles.map((r, i) => (
+                                {extractedRoles.map((r, i) => (
                                   <li key={i}>{r}</li>
                                 ))}
                               </ul>
-                            ) : (
-                              <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>No roles extracted</span>
-                            )}
-                          </div>
+                            </div>
+                          )}
 
                           {/* HR Status action buttons */}
                           <div style={{ paddingTop: '12px', borderTop: '1px solid #e2e8f0' }}>
@@ -655,6 +783,152 @@ export function CVSearch() {
 
         </div>
       </div>
+
+      {/* Job Post Details Modal */}
+      {selectedJob && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px',
+          }}
+          onClick={() => setSelectedJob(null)}
+        >
+          <div
+            style={{
+              background: '#fff',
+              borderRadius: '18px',
+              maxWidth: '620px',
+              width: '100%',
+              maxHeight: '85vh',
+              overflowY: 'auto',
+              padding: '28px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              position: 'relative',
+              animation: 'fadeIn 0.2s ease-out',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              onClick={() => setSelectedJob(null)}
+              style={{
+                position: 'absolute',
+                top: '20px',
+                right: '20px',
+                background: '#f1f5f9',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: '#64748b',
+              }}
+            >
+              <X style={{ width: '18px', height: '18px' }} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  background: '#eef2ff',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#4f46e5',
+                }}
+              >
+                <Briefcase style={{ width: '22px', height: '22px' }} />
+              </div>
+              <div>
+                <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                  {selectedJob.title}
+                </h2>
+                <span style={{ fontSize: '12px', color: '#64748b' }}>
+                  Applied Job Post Details
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
+              {selectedJob.minExperience !== undefined && (
+                <span style={{ fontSize: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '4px 10px', borderRadius: '8px', color: '#475569', fontWeight: 600 }}>
+                  Min. Experience: {selectedJob.minExperience} yrs
+                </span>
+              )}
+              {selectedJob.minEducation && (
+                <span style={{ fontSize: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '4px 10px', borderRadius: '8px', color: '#475569', fontWeight: 600 }}>
+                  Education: {selectedJob.minEducation}
+                </span>
+              )}
+              {selectedJob.location && (
+                <span style={{ fontSize: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '4px 10px', borderRadius: '8px', color: '#475569', fontWeight: 600 }}>
+                  Location: {selectedJob.location}
+                </span>
+              )}
+            </div>
+
+            {/* Required Skills */}
+            {selectedJob.skills && selectedJob.skills.length > 0 && (
+              <div style={{ marginBottom: '20px' }}>
+                <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+                  Required Job Skills ({selectedJob.skills.length})
+                </h4>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                  {selectedJob.skills.map((sk, idx) => (
+                    <span key={idx} style={{ fontSize: '12px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>
+                      {sk}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Description */}
+            <div style={{ marginBottom: '16px' }}>
+              <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+                Job Description
+              </h4>
+              <p style={{ fontSize: '13px', color: '#334155', lineHeight: '1.6', background: '#f8fafc', padding: '14px', borderRadius: '10px', border: '1px solid #f1f5f9', whiteSpace: 'pre-line', margin: 0 }}>
+                {selectedJob.description || 'No detailed description provided for this job post.'}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
+              <button
+                onClick={() => setSelectedJob(null)}
+                style={{
+                  padding: '8px 20px',
+                  background: '#4f46e5',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

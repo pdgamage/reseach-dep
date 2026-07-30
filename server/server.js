@@ -15,6 +15,7 @@ import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import https from "https";
 import { spawn } from "child_process";
+import { OAuth2Client } from "google-auth-library";
 
 dotenv.config();
 
@@ -25,6 +26,8 @@ app.use(express.json());
 const PORT = process.env.PORT || 5050;
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://pasindu1028:Pasindu1!@cluster0.awofywi.mongodb.net/cv";
 const JWT_SECRET = process.env.JWT_SECRET || "smarthire_jwt_secret_token_key_123";
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -112,15 +115,19 @@ const initialApplications = [
     applicantName: "Kasun Perera",
     fileName: "Kasun_Perera_CV.pdf",
     cvUrl: "/api/uploads/mock_cv1.pdf",
-    status: "Pending",
+    status: "Shortlisted",
+    matchScore: 85,
+    skills: ["React", "TypeScript", "Node.js", "Tailwind CSS", "JavaScript", "HTML"],
+    roles: ["Software Engineer", "Frontend Developer", "Web Developer"],
+    rawText: "Kasun Perera Software Engineer Frontend Developer proficient in React, TypeScript, Node.js, JavaScript, and CSS.",
     createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
     statusHistory: [
       {
-        status: "Pending",
-        updatedBy: "System",
+        status: "Shortlisted",
+        updatedBy: "AI Pipeline",
         updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        comment: "Application submitted (mock seed)."
+        comment: "Application analyzed successfully. Match score: 85%."
       }
     ]
   },
@@ -131,15 +138,19 @@ const initialApplications = [
     applicantName: "Amandi Silva",
     fileName: "Amandi_Resume_2023.pdf",
     cvUrl: "/api/uploads/mock_cv2.pdf",
-    status: "Pending",
+    status: "Shortlisted",
+    matchScore: 78,
+    skills: ["Figma", "UI/UX", "Adobe XD", "Wireframing", "Prototyping", "User Research"],
+    roles: ["UI/UX Designer", "Product Designer", "UX Architect"],
+    rawText: "Amandi Silva UI/UX Designer Product Designer experienced in Figma, Adobe XD, Wireframing, and User Centered Design.",
     createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
     statusHistory: [
       {
-        status: "Pending",
-        updatedBy: "System",
+        status: "Shortlisted",
+        updatedBy: "AI Pipeline",
         updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-        comment: "Application submitted (mock seed)."
+        comment: "Application analyzed successfully. Match score: 78%."
       }
     ]
   },
@@ -151,6 +162,10 @@ const initialApplications = [
     fileName: "NuwanF_CV.pdf",
     cvUrl: "/api/uploads/mock_cv3.pdf",
     status: "Pending",
+    matchScore: 62,
+    skills: ["Python", "SQL", "Data Analysis", "Pandas", "PostgreSQL"],
+    roles: ["Data Analyst", "Data Engineer", "Backend Developer"],
+    rawText: "Nuwan Fernando Data Analyst Data Engineer skilled in Python, SQL, PostgreSQL, Data Analysis, and Pandas.",
     createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
     statusHistory: [
@@ -489,7 +504,7 @@ app.post("/api/auth/login", async (req, res) => {
       user = await User.findOne({ email: emailLower });
     }
 
-    if (!user) {
+    if (!user || !user.password) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
@@ -510,11 +525,139 @@ app.post("/api/auth/login", async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        avatar: user.avatar || "",
+        authProvider: user.authProvider || "local",
       },
     });
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Server error during login" });
+  }
+});
+
+app.post("/api/auth/google", async (req, res) => {
+  try {
+    const { token, credential } = req.body;
+    const idToken = token || credential;
+
+    if (!idToken) {
+      return res.status(400).json({ message: "Google token is required" });
+    }
+
+    let payload;
+    try {
+      if (GOOGLE_CLIENT_ID) {
+        const ticket = await googleClient.verifyIdToken({
+          idToken,
+          audience: GOOGLE_CLIENT_ID,
+        });
+        payload = ticket.getPayload();
+      } else {
+        const tokenRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+        if (!tokenRes.ok) {
+          throw new Error("Invalid token");
+        }
+        payload = await tokenRes.json();
+      }
+    } catch (verifyErr) {
+      try {
+        const tokenRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+        if (tokenRes.ok) {
+          payload = await tokenRes.json();
+        } else {
+          return res.status(400).json({ message: "Invalid Google token" });
+        }
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid Google token" });
+      }
+    }
+
+    if (!payload || !payload.email) {
+      return res.status(400).json({ message: "Google authentication failed: Email missing" });
+    }
+
+    const emailLower = payload.email.toLowerCase().trim();
+    const name = payload.name || `${payload.given_name || ""} ${payload.family_name || ""}`.trim() || "Applicant User";
+    const googleId = payload.sub;
+    const avatar = payload.picture || "";
+
+    let user;
+
+    if (useLocalDb) {
+      const users = readUsers();
+      user = users.find((u) => u.email === emailLower);
+
+      if (user) {
+        if (user.role === "hr") {
+          return res.status(403).json({
+            message: "Google authentication is only available for Applicants. HR users must sign in with email and password.",
+          });
+        }
+        user.googleId = googleId;
+        user.avatar = avatar || user.avatar;
+        user.authProvider = "google";
+        user.updatedAt = new Date().toISOString();
+        writeUsers(users);
+      } else {
+        user = {
+          _id: new mongoose.Types.ObjectId().toString(),
+          name,
+          email: emailLower,
+          role: "applicant",
+          googleId,
+          avatar,
+          authProvider: "google",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        users.push(user);
+        writeUsers(users);
+      }
+    } else {
+      user = await User.findOne({ email: emailLower });
+
+      if (user) {
+        if (user.role === "hr") {
+          return res.status(403).json({
+            message: "Google authentication is only available for Applicants. HR users must sign in with email and password.",
+          });
+        }
+        user.googleId = googleId;
+        user.avatar = avatar || user.avatar;
+        user.authProvider = "google";
+        await user.save();
+      } else {
+        user = new User({
+          name,
+          email: emailLower,
+          role: "applicant",
+          googleId,
+          avatar,
+          authProvider: "google",
+        });
+        await user.save();
+      }
+    }
+
+    const userId = useLocalDb ? user._id : user._id.toString();
+    const jwtToken = jwt.sign({ id: userId, role: user.role }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.json({
+      token: jwtToken,
+      user: {
+        id: userId,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        authProvider: user.authProvider || "google",
+      },
+    });
+  } catch (error) {
+    console.error("Google auth error:", error);
+    res.status(500).json({ message: "Server error during Google authentication" });
   }
 });
 
@@ -527,6 +670,8 @@ app.get("/api/auth/me", authMiddleware, async (req, res) => {
         name: req.user.name,
         email: req.user.email,
         role: req.user.role,
+        avatar: req.user.avatar || "",
+        authProvider: req.user.authProvider || "local",
       },
     });
   } catch (error) {
@@ -938,11 +1083,15 @@ Output ONLY a valid JSON object matching this schema exactly:
 {
   "matchScore": <integer 0-100>,
   "skillsMatched": ["matched skill 1", "matched skill 2"],
+  "extractedSkills": ["individual technical skills found in candidate CV e.g. Figma, React, HTML, CSS, JavaScript, Python, SQL"],
+  "extractedRoles": ["work roles/job titles found in candidate CV e.g. UI/UX Designer, Software Engineer"],
   "educationMatch": "1-2 sentences on how education fits",
   "experienceMatch": "1-2 sentences on how experience fits",
   "explanation": "2-3 sentences overall evaluation",
   "isRecommended": <boolean true if score >= 70>
 }
+IMPORTANT:
+- extractedSkills must contain ONLY genuine technical skills (software tools, programming languages, methodologies). Exclude soft skill phrases like "Team Player" or "Referees". Each item MUST be a short skill name (1-3 words max).
 
 Job Requirements:
 Title: ${job.title}
@@ -969,9 +1118,9 @@ ${(candidate.rawText || "").substring(0, 3000)}`;
     const isGemini = !!geminiKey;
 
     if (isGemini) {
-      console.log("[AI Pipeline] Using Gemini AI for CV comparison (via https.request)");
+      console.log("[AI Pipeline] Using Gemini AI for CV comparison & entity extraction");
       hostname = "generativelanguage.googleapis.com";
-      path = `/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+      path = `/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
       requestBody = JSON.stringify({
         contents: [{ parts: [{ text: promptText }] }],
         generationConfig: { responseMimeType: "application/json" }
@@ -1102,9 +1251,20 @@ function simulateMatching(job, candidate) {
     explanation = `Candidate lacks several core requirements. They only matched ${matched.length} of the ${job.skills.length} essential skills. May not be the best fit unless they have alternative undocumented experience.`;
   }
 
+  // Extract technical skills fallback from rawText
+  const commonTech = [
+    "Figma", "HTML", "CSS", "React", "TypeScript", "JavaScript", "Node.js", "Python",
+    "SQL", "PostgreSQL", "MongoDB", "Docker", "AWS", "Java", "Spring Boot", "Git",
+    "Wireframing", "Prototyping", "User Research", "Adobe XD", "Data Analysis", "Pandas"
+  ];
+  const extractedSkillsFromRaw = commonTech.filter(tech => rawTextLower.includes(tech.toLowerCase()));
+  const allExtractedSkills = Array.from(new Set([...matched, ...extractedSkillsFromRaw, ...(candidate.skills || [])]));
+
   return {
     matchScore,
     skillsMatched: matched,
+    extractedSkills: allExtractedSkills,
+    extractedRoles: candidate.roles || [],
     educationMatch: eduMatchText,
     experienceMatch: expMatchText,
     explanation,
@@ -1227,13 +1387,48 @@ async function processCVApplication(applicationId) {
     console.log(`[AI Pipeline] Successfully completed AI comparison. Score: ${comparisonResult.matchScore}%`);
 
     // 6. Update database record with parsed text, skills, and AI ratings
+    const junkPatterns = [
+      'non-related referees', 'team player', 'communication management',
+      'problem solving creativity', 'referees', 'soft skills', 'management skills'
+    ];
+
+    let candidateRawSkills = [];
+    if (comparisonResult.extractedSkills && Array.isArray(comparisonResult.extractedSkills) && comparisonResult.extractedSkills.length > 0) {
+      candidateRawSkills = comparisonResult.extractedSkills;
+    } else if (parserResult.entities?.SKILLS && Array.isArray(parserResult.entities.SKILLS)) {
+      candidateRawSkills = parserResult.entities.SKILLS;
+    }
+
+    const cleanSkills = [];
+    candidateRawSkills.forEach(item => {
+      if (typeof item === 'string') {
+        const parts = item.split(/[,;\n]/).map(p => p.trim()).filter(Boolean);
+        parts.forEach(p => {
+          const lower = p.toLowerCase();
+          if (p.length <= 35 && !junkPatterns.some(j => lower.includes(j))) {
+            cleanSkills.push(p);
+          }
+        });
+      }
+    });
+
+    const mergedSkills = Array.from(new Set(cleanSkills));
+
+    let candidateRawRoles = [];
+    if (comparisonResult.extractedRoles && Array.isArray(comparisonResult.extractedRoles) && comparisonResult.extractedRoles.length > 0) {
+      candidateRawRoles = comparisonResult.extractedRoles;
+    } else if (parserResult.entities?.ROLE && Array.isArray(parserResult.entities.ROLE)) {
+      candidateRawRoles = parserResult.entities.ROLE;
+    }
+    const mergedRoles = Array.from(new Set(candidateRawRoles.map(r => typeof r === 'string' ? r.trim() : r).filter(Boolean)));
+
     const updatedData = {
-      rawText: parserResult.raw_text,
-      skills: parserResult.entities.SKILLS || [],
-      education: parserResult.entities.EDUCATION || [],
-      roles: parserResult.entities.ROLE || [],
-      projects: parserResult.entities.PROJECTS || [],
-      matchScore: comparisonResult.matchScore,
+      rawText: parserResult.raw_text || application.rawText || "",
+      skills: mergedSkills,
+      education: parserResult.entities?.EDUCATION || application.education || [],
+      roles: mergedRoles,
+      projects: parserResult.entities?.PROJECTS || application.projects || [],
+      matchScore: comparisonResult.matchScore || 0,
       skillsMatched: comparisonResult.skillsMatched || [],
       educationMatch: comparisonResult.educationMatch || "-",
       experienceMatch: comparisonResult.experienceMatch || "-",
@@ -1636,14 +1831,30 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
     if (skills) {
       const skillsList = skills.split(",").map(s => s.trim()).filter(Boolean);
       if (skillsList.length > 0) {
-        filter.skills = { $all: skillsList.map(s => new RegExp("^" + s + "$", "i")) };
+        const skillRegexes = skillsList.map(s => new RegExp(s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), "i"));
+        filter.$and = filter.$and || [];
+        skillRegexes.forEach(regex => {
+          filter.$and.push({
+            $or: [
+              { skills: { $regex: regex } },
+              { skillsMatched: { $regex: regex } }
+            ]
+          });
+        });
       }
     }
 
     if (roles) {
       const rolesList = roles.split(",").map(r => r.trim()).filter(Boolean);
       if (rolesList.length > 0) {
-        filter.roles = { $in: rolesList.map(r => new RegExp(r, "i")) };
+        const roleRegexes = rolesList.map(r => new RegExp(r.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), "i"));
+        const matchingJobs = await Job.find({ title: { $in: roleRegexes } }).select("_id id");
+        const matchingJobIds = matchingJobs.map(j => j._id.toString()).concat(matchingJobs.map(j => j.id || j._id));
+
+        filter.$or = [
+          { roles: { $in: roleRegexes } },
+          { jobId: { $in: matchingJobIds } }
+        ];
       }
     }
 
@@ -1653,6 +1864,7 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
 
     if (useLocalDb) {
       let applications = readApplications();
+      const jobs = readJobs();
       
       if (status) {
         applications = applications.filter(app => app.status === status);
@@ -1666,7 +1878,9 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
         const skillsList = skills.toLowerCase().split(",").map(s => s.trim()).filter(Boolean);
         applications = applications.filter(app => {
           const appSkills = (app.skills || []).map(s => s.toLowerCase());
-          return skillsList.every(s => appSkills.includes(s));
+          const matchedSkills = (app.skillsMatched || []).map(s => s.toLowerCase());
+          const allSkills = [...appSkills, ...matchedSkills];
+          return skillsList.every(s => allSkills.some(as => as.includes(s)));
         });
       }
       
@@ -1674,7 +1888,12 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
         const rolesList = roles.toLowerCase().split(",").map(r => r.trim()).filter(Boolean);
         applications = applications.filter(app => {
           const appRoles = (app.roles || []).map(r => r.toLowerCase());
-          return rolesList.some(r => appRoles.some(ar => ar.includes(r)));
+          const job = jobs.find(j => j._id === app.jobId || j.id === app.jobId);
+          const jobTitle = job ? job.title.toLowerCase() : "";
+          return rolesList.some(r =>
+            appRoles.some(ar => ar.includes(r)) ||
+            jobTitle.includes(r)
+          );
         });
       }
       
