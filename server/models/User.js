@@ -16,12 +16,25 @@ const userSchema = new mongoose.Schema(
     },
     password: {
       type: String,
-      required: true,
+      required: false,
     },
     role: {
       type: String,
       enum: ["hr", "applicant"],
       default: "applicant",
+    },
+    googleId: {
+      type: String,
+      required: false,
+    },
+    avatar: {
+      type: String,
+      required: false,
+    },
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
     },
   },
   {

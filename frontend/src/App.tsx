@@ -66,11 +66,15 @@ const AuthLayout = () => {
   return <Outlet />;
 };
 import { Toaster } from "react-hot-toast";
+import { GoogleOAuthProvider } from "@react-oauth/google";
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "978800458477-nvou1vdnql9fcar6eaikr88ali9b5djd.apps.googleusercontent.com";
 
 export function App() {
   return (
-    <AuthProvider>
-      <Toaster position="top-right" reverseOrder={false} />
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <AuthProvider>
+        <Toaster position="top-right" reverseOrder={false} />
       <Router>
         <Routes>
           {/* Auth Routes */}
@@ -104,5 +108,6 @@ export function App() {
         </Routes>
       </Router>
     </AuthProvider>
+    </GoogleOAuthProvider>
   );
 }
