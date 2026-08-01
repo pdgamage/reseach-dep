@@ -1888,10 +1888,9 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
 
     if (useLocalDb) {
       let applications = readApplications();
-<<<<<<< HEAD
-=======
+
       const jobs = readJobs();
->>>>>>> 6406aa5d7813cd26a783129a266e03d10a3bf795
+
 
       if (status) {
         applications = applications.filter(app => app.status === status);
