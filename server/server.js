@@ -730,7 +730,7 @@ app.get("/api/dashboard/stats", authMiddleware, async (req, res) => {
     if (useLocalDb) {
       const jobs = readJobs();
       const applications = readApplications();
-      
+
       const totalJobs = jobs.length;
       const openJobs = jobs.filter(j => j.status === "Open").length;
       const totalCVs = applications.length;
@@ -1067,6 +1067,51 @@ function runPythonParser(pdfPath) {
   });
 }
 
+// Helper: Make HTTPS request with automatic retry on 429 rate limits
+async function httpsRequestWithRetry(options, body, maxRetries = 2) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await new Promise((resolve, reject) => {
+        const req = https.request(options, (res) => {
+          let responseData = '';
+          res.on('data', (chunk) => { responseData += chunk; });
+          res.on('end', () => {
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              try { resolve(JSON.parse(responseData)); }
+              catch (e) { reject(new Error("Failed to parse API JSON")); }
+            } else if (res.statusCode === 429 && attempt < maxRetries) {
+              // Rate limited - parse retry delay from API response
+              let retryDelay = 32;
+              try {
+                const errBody = JSON.parse(responseData);
+                const retryInfo = (errBody.error?.details || []).find(d => (d["@type"] || "").includes("RetryInfo"));
+                if (retryInfo?.retryDelay) {
+                  retryDelay = Math.min(parseInt(retryInfo.retryDelay) || 32, 120);
+                }
+              } catch (_) {}
+              reject({ __retryable: true, __delay: retryDelay });
+            } else {
+              reject(new Error(`API returned status ${res.statusCode}: ${responseData}`));
+            }
+          });
+        });
+        req.on('error', (e) => reject(e));
+        req.on('timeout', () => { req.destroy(); reject(new Error('API request timeout')); });
+        req.write(body);
+        req.end();
+      });
+      return result; // Success
+    } catch (err) {
+      if (err?.__retryable && attempt < maxRetries) {
+        console.log(`[AI Pipeline] Rate limited (429). Waiting ${err.__delay}s before retry ${attempt + 1}/${maxRetries}...`);
+        await new Promise(r => setTimeout(r, err.__delay * 1000));
+        continue;
+      }
+      throw err instanceof Error ? err : new Error(String(err));
+    }
+  }
+}
+
 // Compare candidate details with job description using AI (Gemini or Grok) API
 async function compareCVWithJobAI(job, candidate) {
   const geminiKey = process.env.GEMINI_API_KEY;
@@ -1120,7 +1165,7 @@ ${(candidate.rawText || "").substring(0, 3000)}`;
     if (isGemini) {
       console.log("[AI Pipeline] Using Gemini AI for CV comparison & entity extraction");
       hostname = "generativelanguage.googleapis.com";
-      path = `/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`;
+      path = `/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
       requestBody = JSON.stringify({
         contents: [{ parts: [{ text: promptText }] }],
         generationConfig: { responseMimeType: "application/json" }
@@ -1148,24 +1193,7 @@ ${(candidate.rawText || "").substring(0, 3000)}`;
       timeout: 60000 // 60s timeout bypasses fetch bug
     };
 
-    const data = await new Promise((resolve, reject) => {
-      const req = https.request(options, (res) => {
-        let responseData = '';
-        res.on('data', (chunk) => { responseData += chunk; });
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try { resolve(JSON.parse(responseData)); }
-            catch (e) { reject(new Error("Failed to parse API JSON")); }
-          } else {
-            reject(new Error(`API returned status ${res.statusCode}: ${responseData}`));
-          }
-        });
-      });
-      req.on('error', (e) => reject(e));
-      req.on('timeout', () => { req.destroy(); reject(new Error('Timeout after 60s')); });
-      req.write(requestBody);
-      req.end();
-    });
+    const data = await httpsRequestWithRetry(options, requestBody);
 
     let jsonString = "";
     if (isGemini) {
@@ -1528,7 +1556,7 @@ app.post("/api/applications/:id/send-email", authMiddleware, async (req, res) =>
   try {
     const { id } = req.params;
     const { jobId, applicantId, applicantName } = req.body;
-    
+
     if (req.user.role !== "hr") {
       return res.status(403).json({ message: "Access denied. Only HR can send emails." });
     }
@@ -1639,7 +1667,7 @@ ${rawText.substring(0, 4000)}
 `;
 
   const hostname = "generativelanguage.googleapis.com";
-  const path = `/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+  const path = `/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
   const requestBody = JSON.stringify({
     contents: [{ parts: [{ text: promptText }] }],
     generationConfig: { responseMimeType: "application/json" }
@@ -1657,24 +1685,7 @@ ${rawText.substring(0, 4000)}
     timeout: 30000
   };
 
-  const data = await new Promise((resolve, reject) => {
-    const req = https.request(options, (res) => {
-      let responseData = '';
-      res.on('data', (chunk) => { responseData += chunk; });
-      res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          try { resolve(JSON.parse(responseData)); }
-          catch (e) { reject(new Error("Failed to parse API JSON")); }
-        } else {
-          reject(new Error(`API returned status ${res.statusCode}: ${responseData}`));
-        }
-      });
-    });
-    req.on('error', (e) => reject(e));
-    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout after 30s')); });
-    req.write(requestBody);
-    req.end();
-  });
+  const data = await httpsRequestWithRetry(options, requestBody);
 
   let jsonString = data.candidates[0].content.parts[0].text;
   jsonString = jsonString.replace(/```json/g, '').replace(/```/g, '').trim();
@@ -1701,6 +1712,15 @@ app.get("/api/applications/:id/contact-info", authMiddleware, async (req, res) =
       if (app.rawText) {
         try {
           const contact = await extractContactInfoWithGemini(app.rawText);
+          // Cache extracted contact info to avoid future API calls
+          const allApps = readApplications();
+          const cacheIdx = allApps.findIndex(a => a._id === id || a.id === id);
+          if (cacheIdx !== -1) {
+            allApps[cacheIdx].email = contact.email || "";
+            allApps[cacheIdx].phone = contact.phone || "";
+            allApps[cacheIdx].updatedAt = new Date().toISOString();
+            writeApplications(allApps);
+          }
           return res.json({
             name: contact.name || app.applicantName,
             email: contact.email || "",
@@ -1722,6 +1742,10 @@ app.get("/api/applications/:id/contact-info", authMiddleware, async (req, res) =
     if (application.rawText) {
       try {
         const contact = await extractContactInfoWithGemini(application.rawText);
+        // Cache extracted contact info to avoid future API calls
+        await Application.findByIdAndUpdate(id, {
+          $set: { email: contact.email || "", phone: contact.phone || "" }
+        });
         return res.json({
           name: contact.name || application.applicantName,
           email: contact.email || "",
@@ -1865,15 +1889,15 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
     if (useLocalDb) {
       let applications = readApplications();
       const jobs = readJobs();
-      
+
       if (status) {
         applications = applications.filter(app => app.status === status);
       }
-      
+
       if (minScore) {
         applications = applications.filter(app => (app.matchScore || 0) >= Number(minScore));
       }
-      
+
       if (skills) {
         const skillsList = skills.toLowerCase().split(",").map(s => s.trim()).filter(Boolean);
         applications = applications.filter(app => {
@@ -1883,7 +1907,7 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
           return skillsList.every(s => allSkills.some(as => as.includes(s)));
         });
       }
-      
+
       if (roles) {
         const rolesList = roles.toLowerCase().split(",").map(r => r.trim()).filter(Boolean);
         applications = applications.filter(app => {
@@ -1896,7 +1920,7 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
           );
         });
       }
-      
+
       if (query) {
         const queryLower = query.toLowerCase();
         applications = applications.filter(app => {
@@ -1908,7 +1932,7 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
           );
         });
       }
-      
+
       const mapped = applications.map(app => ({ ...app, id: app._id }));
       return res.json(mapped);
     }
@@ -1931,7 +1955,7 @@ app.post("/api/applications/:id/status", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, comment } = req.body;
-    
+
     if (req.user.role !== "hr") {
       return res.status(403).json({ message: "Access denied. Only HR can update application status." });
     }
@@ -1965,7 +1989,7 @@ app.post("/api/applications/:id/status", authMiddleware, async (req, res) => {
         statusHistory: newHistory,
         updatedAt: new Date().toISOString()
       };
-      
+
       writeApplications(applications);
       return res.json({ ...applications[idx], id: applications[idx]._id });
     }
