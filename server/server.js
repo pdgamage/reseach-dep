@@ -585,7 +585,7 @@ app.get("/api/dashboard/stats", authMiddleware, async (req, res) => {
     if (useLocalDb) {
       const jobs = readJobs();
       const applications = readApplications();
-      
+
       const totalJobs = jobs.length;
       const openJobs = jobs.filter(j => j.status === "Open").length;
       const totalCVs = applications.length;
@@ -1333,7 +1333,7 @@ app.post("/api/applications/:id/send-email", authMiddleware, async (req, res) =>
   try {
     const { id } = req.params;
     const { jobId, applicantId, applicantName } = req.body;
-    
+
     if (req.user.role !== "hr") {
       return res.status(403).json({ message: "Access denied. Only HR can send emails." });
     }
@@ -1653,15 +1653,15 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
 
     if (useLocalDb) {
       let applications = readApplications();
-      
+
       if (status) {
         applications = applications.filter(app => app.status === status);
       }
-      
+
       if (minScore) {
         applications = applications.filter(app => (app.matchScore || 0) >= Number(minScore));
       }
-      
+
       if (skills) {
         const skillsList = skills.toLowerCase().split(",").map(s => s.trim()).filter(Boolean);
         applications = applications.filter(app => {
@@ -1669,7 +1669,7 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
           return skillsList.every(s => appSkills.includes(s));
         });
       }
-      
+
       if (roles) {
         const rolesList = roles.toLowerCase().split(",").map(r => r.trim()).filter(Boolean);
         applications = applications.filter(app => {
@@ -1677,7 +1677,7 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
           return rolesList.some(r => appRoles.some(ar => ar.includes(r)));
         });
       }
-      
+
       if (query) {
         const queryLower = query.toLowerCase();
         applications = applications.filter(app => {
@@ -1689,7 +1689,7 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
           );
         });
       }
-      
+
       const mapped = applications.map(app => ({ ...app, id: app._id }));
       return res.json(mapped);
     }
@@ -1712,7 +1712,7 @@ app.post("/api/applications/:id/status", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, comment } = req.body;
-    
+
     if (req.user.role !== "hr") {
       return res.status(403).json({ message: "Access denied. Only HR can update application status." });
     }
@@ -1746,7 +1746,7 @@ app.post("/api/applications/:id/status", authMiddleware, async (req, res) => {
         statusHistory: newHistory,
         updatedAt: new Date().toISOString()
       };
-      
+
       writeApplications(applications);
       return res.json({ ...applications[idx], id: applications[idx]._id });
     }
