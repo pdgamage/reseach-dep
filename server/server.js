@@ -1589,7 +1589,7 @@ app.post("/api/applications/:id/analyze", authMiddleware, async (req, res) => {
   }
 });
 
-async function sendEmailViaEmailJS({ to_name, to_email, job_title, match_score, explanation }) {
+async function sendEmailViaEmailJS({ to_name, to_email, job_title, match_score, explanation, interview_date, interview_time, interview_location, interview_notes }) {
   const serviceId = process.env.EMAILJS_SERVICE_ID || "service_iein0zd";
   const templateId = process.env.EMAILJS_TEMPLATE_ID || "template_la8776r";
   const publicKey = process.env.EMAILJS_PUBLIC_KEY || "UdPCaVgF50BTauCMv";
@@ -1598,6 +1598,13 @@ async function sendEmailViaEmailJS({ to_name, to_email, job_title, match_score, 
   if (!to_email) {
     console.warn("[EmailJS] Cannot send email: recipient address is empty.");
     return { success: false, error: "Recipient email is missing" };
+  }
+
+  let messageText = "";
+  if (interview_date && interview_time) {
+    messageText = `Dear ${to_name},\n\nWe are pleased to invite you for an interview for the ${job_title} position!\n\nHere are your interview details:\n- Date: ${interview_date}\n- Time: ${interview_time}\n- Location: ${interview_location || "Zoom / Online"}\n${interview_notes ? `- Notes: ${interview_notes}\n` : ""}\nMatch Score: ${match_score}%\nAI Feedback: ${explanation}\n\nOur recruitment team will be in touch with you soon.\n\nBest regards,\nSmartHire HR Team`;
+  } else {
+    messageText = `Dear ${to_name},\n\nWe are pleased to inform you that your application for the ${job_title} position has been reviewed.\n\nMatch Score: ${match_score}%\nAI Feedback: ${explanation}\n\nOur recruitment team will be in touch with you soon.\n\nBest regards,\nSmartHire HR Team`;
   }
 
   const payload = JSON.stringify({
@@ -1617,7 +1624,11 @@ async function sendEmailViaEmailJS({ to_name, to_email, job_title, match_score, 
       job_title: job_title || "Position",
       match_score: match_score ? `${match_score}%` : "",
       explanation: explanation || "",
-      message: `Dear ${to_name},\n\nWe are pleased to inform you that your application for the ${job_title} position has been reviewed.\n\nMatch Score: ${match_score}%\nAI Feedback: ${explanation}\n\nOur recruitment team will be in touch with you soon.\n\nBest regards,\nSmartHire HR Team`
+      interview_date: interview_date || "",
+      interview_time: interview_time || "",
+      interview_location: interview_location || "",
+      interview_notes: interview_notes || "",
+      message: messageText
     }
   });
 
@@ -1716,6 +1727,17 @@ app.post("/api/applications/:id/send-email", authMiddleware, async (req, res) =>
 
     const candidateName = applicantName || application?.applicantName || "Candidate";
 
+    let interviewSchedule = null;
+    const targetJobId = application?.jobId || jobId;
+    if (targetJobId) {
+      if (useLocalDb) {
+        const schedules = readSchedules();
+        interviewSchedule = schedules.find(s => s.jobId === targetJobId);
+      } else {
+        interviewSchedule = await InterviewSchedule.findOne({ jobId: targetJobId });
+      }
+    }
+
     if (recipientEmail) {
       console.log(`[Send Email] Dispatching email to ${candidateName} <${recipientEmail}> for job "${jobTitle}"...`);
       const emailResult = await sendEmailViaEmailJS({
@@ -1723,7 +1745,11 @@ app.post("/api/applications/:id/send-email", authMiddleware, async (req, res) =>
         to_email: recipientEmail,
         job_title: jobTitle,
         match_score: matchScore || application?.matchScore || 0,
-        explanation: explanation || application?.explanation || ""
+        explanation: explanation || application?.explanation || "",
+        interview_date: interviewSchedule ? interviewSchedule.date : "",
+        interview_time: interviewSchedule ? interviewSchedule.time : "",
+        interview_location: interviewSchedule ? interviewSchedule.location : "",
+        interview_notes: interviewSchedule ? interviewSchedule.notes : ""
       });
       if (!emailResult.success) {
         return res.status(400).json({
