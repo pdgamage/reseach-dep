@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Job, mockResults } from '../data/mockData';
 import { FairnessPanel } from '../components/FairnessPanel';
 import { CandidateResultCard } from '../components/CandidateResultCard';
-import { ArrowLeft, Download, Users, Sparkles } from 'lucide-react';
+import { ArrowLeft, Users,  } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const pageStyles = `
@@ -162,10 +162,7 @@ export function ShortlistResults() {
           {/* Header */}
           <div className="sr-fade" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '24px' }}>
             <div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 12px', background: '#eef2ff', color: '#4f46e5', borderRadius: '20px', fontSize: '12px', fontWeight: 600, marginBottom: '8px' }}>
-                <Sparkles style={{ width: '13px', height: '13px' }} />
-                SmartHire AI Engine
-              </div>
+              
               <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
                 Shortlisting Results
               </h1>
@@ -174,26 +171,7 @@ export function ShortlistResults() {
               </p>
             </div>
 
-            <button
-              onClick={() => toast.success('Export report feature ready')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '9px 18px',
-                background: '#fff',
-                border: '1px solid #cbd5e1',
-                borderRadius: '10px',
-                fontSize: '13px',
-                fontWeight: 600,
-                color: '#475569',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              <Download style={{ width: '15px', height: '15px' }} />
-              Export Report
-            </button>
+           
           </div>
 
           {/* Fairness Panel Component */}

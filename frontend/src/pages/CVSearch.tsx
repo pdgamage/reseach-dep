@@ -93,6 +93,20 @@ const pageStyles = `
     border-color: #4f46e5 !important;
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
   }
+
+  .cvs-modal-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+  .cvs-modal-scroll::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .cvs-modal-scroll::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 10px;
+  }
+  .cvs-modal-scroll::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+  }
 `;
 
 export function CVSearch() {
@@ -810,8 +824,9 @@ export function CVSearch() {
               maxWidth: '620px',
               width: '100%',
               maxHeight: '85vh',
-              overflowY: 'auto',
-              padding: '28px',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               position: 'relative',
               animation: 'fadeIn 0.2s ease-out',
@@ -834,97 +849,81 @@ export function CVSearch() {
                 justifyContent: 'center',
                 cursor: 'pointer',
                 color: '#64748b',
+                zIndex: 10,
               }}
             >
               <X style={{ width: '18px', height: '18px' }} />
             </button>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <div
-                style={{
-                  width: '44px',
-                  height: '44px',
-                  background: '#eef2ff',
-                  borderRadius: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#4f46e5',
-                }}
-              >
-                <Briefcase style={{ width: '22px', height: '22px' }} />
-              </div>
-              <div>
-                <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
-                  {selectedJob.title}
-                </h2>
-                <span style={{ fontSize: '12px', color: '#64748b' }}>
-                  Applied Job Post Details
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
-              {selectedJob.minExperience !== undefined && (
-                <span style={{ fontSize: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '4px 10px', borderRadius: '8px', color: '#475569', fontWeight: 600 }}>
-                  Min. Experience: {selectedJob.minExperience} yrs
-                </span>
-              )}
-              {selectedJob.minEducation && (
-                <span style={{ fontSize: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '4px 10px', borderRadius: '8px', color: '#475569', fontWeight: 600 }}>
-                  Education: {selectedJob.minEducation}
-                </span>
-              )}
-              {selectedJob.location && (
-                <span style={{ fontSize: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '4px 10px', borderRadius: '8px', color: '#475569', fontWeight: 600 }}>
-                  Location: {selectedJob.location}
-                </span>
-              )}
-            </div>
-
-            {/* Required Skills */}
-            {selectedJob.skills && selectedJob.skills.length > 0 && (
-              <div style={{ marginBottom: '20px' }}>
-                <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
-                  Required Job Skills ({selectedJob.skills.length})
-                </h4>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {selectedJob.skills.map((sk, idx) => (
-                    <span key={idx} style={{ fontSize: '12px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>
-                      {sk}
-                    </span>
-                  ))}
+            <div className="cvs-modal-scroll" style={{ overflowY: 'auto', padding: '28px', flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div
+                  style={{
+                    width: '44px',
+                    height: '44px',
+                    background: '#eef2ff',
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#4f46e5',
+                  }}
+                >
+                  <Briefcase style={{ width: '22px', height: '22px' }} />
+                </div>
+                <div>
+                  <h2 style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', margin: 0 }}>
+                    {selectedJob.title}
+                  </h2>
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>
+                    Applied Job Post Details
+                  </span>
                 </div>
               </div>
-            )}
 
-            {/* Description */}
-            <div style={{ marginBottom: '16px' }}>
-              <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
-                Job Description
-              </h4>
-              <p style={{ fontSize: '13px', color: '#334155', lineHeight: '1.6', background: '#f8fafc', padding: '14px', borderRadius: '10px', border: '1px solid #f1f5f9', whiteSpace: 'pre-line', margin: 0 }}>
-                {selectedJob.description || 'No detailed description provided for this job post.'}
-              </p>
-            </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px', paddingTop: '12px', borderTop: '1px solid #f1f5f9' }}>
+                {selectedJob.minExperience !== undefined && (
+                  <span style={{ fontSize: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '4px 10px', borderRadius: '8px', color: '#475569', fontWeight: 600 }}>
+                    Min. Experience: {selectedJob.minExperience} yrs
+                  </span>
+                )}
+                {selectedJob.minEducation && (
+                  <span style={{ fontSize: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '4px 10px', borderRadius: '8px', color: '#475569', fontWeight: 600 }}>
+                    Education: {selectedJob.minEducation}
+                  </span>
+                )}
+                {selectedJob.location && (
+                  <span style={{ fontSize: '12px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '4px 10px', borderRadius: '8px', color: '#475569', fontWeight: 600 }}>
+                    Location: {selectedJob.location}
+                  </span>
+                )}
+              </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
-              <button
-                onClick={() => setSelectedJob(null)}
-                style={{
-                  padding: '8px 20px',
-                  background: '#4f46e5',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '10px',
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                Close
-              </button>
+              {/* Required Skills */}
+              {selectedJob.skills && selectedJob.skills.length > 0 && (
+                <div style={{ marginBottom: '20px' }}>
+                  <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+                    Required Job Skills ({selectedJob.skills.length})
+                  </h4>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {selectedJob.skills.map((sk, idx) => (
+                      <span key={idx} style={{ fontSize: '12px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '3px 10px', borderRadius: '12px', fontWeight: 600 }}>
+                        {sk}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Description */}
+              <div style={{ marginBottom: '16px' }}>
+                <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px' }}>
+                  Job Description
+                </h4>
+                <p style={{ fontSize: '13px', color: '#334155', lineHeight: '1.6', background: '#f8fafc', padding: '14px', borderRadius: '10px', border: '1px solid #f1f5f9', whiteSpace: 'pre-line', margin: 0 }}>
+                  {selectedJob.description || 'No detailed description provided for this job post.'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
