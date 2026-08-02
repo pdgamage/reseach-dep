@@ -6,6 +6,8 @@ import {
   Navigate,
   Outlet,
 } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 // Components
 import { Sidebar } from "./components/Sidebar";
@@ -23,6 +25,7 @@ import { ShortlistResults } from "./pages/ShortlistResults";
 import Landing from "./pages/Landing";
 import { InterviewSchedule } from "./pages/InterviewSchedule";
 import { CVSearch } from "./pages/CVSearch";
+
 // Layouts
 const HRLayout = () => {
   const { user } = useAuth();
@@ -65,8 +68,6 @@ const AuthLayout = () => {
   }
   return <Outlet />;
 };
-import { Toaster } from "react-hot-toast";
-import { GoogleOAuthProvider } from "@react-oauth/google";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "978800458477-nvou1vdnql9fcar6eaikr88ali9b5djd.apps.googleusercontent.com";
 

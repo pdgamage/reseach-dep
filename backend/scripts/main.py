@@ -17,6 +17,12 @@ from cv_postprocess import merge_and_extract, save_json
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE_PATH = os.path.dirname(SCRIPT_DIR)  # up to 'backend'
 
+# Poppler path for Windows (bundled binaries inside backend/poppler/).
+# On Linux/Mac poppler is usually on PATH, so we only set this on Windows.
+import platform as _platform
+_POPPLER_BIN = os.path.join(BASE_PATH, "poppler", "poppler-24.08.0", "Library", "bin")
+POPPLER_PATH = _POPPLER_BIN if (_platform.system() == "Windows" and os.path.isdir(_POPPLER_BIN)) else None
+
 # Choose between "BERT" or "SPACY" for entity extraction
 NER_ENGINE = "BERT"
 
@@ -120,7 +126,9 @@ def clean(text):
 # ==============================
 
 def pdf_to_images(pdf_path, name):
-    pages = convert_from_path(pdf_path)
+    # Pass poppler_path so pdf2image finds pdftoppm on Windows without PATH changes.
+    kwargs = {"poppler_path": POPPLER_PATH} if POPPLER_PATH else {}
+    pages = convert_from_path(pdf_path, **kwargs)
     paths = []
     for i, p in enumerate(pages):
         out = os.path.join(PATHS["images"], f"{name}_page_{i+1}.png")
@@ -551,6 +559,34 @@ def extract_entities(sections, nlp):
                 stripped = text.strip()
                 if stripped:
                     final["PROJECTS"].append(stripped)
+
+    # -------------------------
+    # ✅ Fallback extraction on full text
+    # (runs when section-level NER found nothing, e.g. YOLO mislabelled sections)
+    # -------------------------
+
+    # Skills fallback: run dictionary+NER over full text if no skills found section-by-section
+    if not final["SKILLS"]:
+        fallback_skills = extract_skills_from_text(all_text, nlp)
+        final["SKILLS"].extend(fallback_skills)
+
+    # Projects fallback: collect any section text that looks project-like
+    if not final["PROJECTS"]:
+        project_keywords = {"developed", "built", "created", "implemented", "designed",
+                            "project", "system", "application", "app", "platform"}
+        for item in sections:
+            t = item.get("text", "").strip()
+            if t and any(kw in t.lower() for kw in project_keywords):
+                final["PROJECTS"].append(t)
+        # Deduplicate and cap at 5 entries
+        seen_proj = set()
+        deduped_proj = []
+        for p in final["PROJECTS"]:
+            k = p[:60].lower()
+            if k not in seen_proj:
+                seen_proj.add(k)
+                deduped_proj.append(p)
+        final["PROJECTS"] = deduped_proj[:5]
 
     # -------------------------
     # ✅ Clean final JSON

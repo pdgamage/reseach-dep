@@ -242,7 +242,7 @@ function writeJobs(jobs) {
 
 // MongoDB Connection with timeout
 mongoose
-  .connect(MONGODB_URI, { serverSelectionTimeoutMS: 2000 })
+  .connect(MONGODB_URI, { serverSelectionTimeoutMS: 15000 })
   .then(async () => {
     console.log("Connected to MongoDB successfully");
     await seedHR();
@@ -869,6 +869,8 @@ app.post("/api/jobs/:id/apply", authMiddleware, upload.single("cv"), async (req,
       jobId,
       applicantId: userId,
       applicantName: userName,
+      email: req.user?.email || "",
+      phone: "",
       fileName,
       cvUrl,
       status: "Pending"
@@ -1015,10 +1017,10 @@ function downloadFile(url, destPath, redirectCount = 0) {
 function runPythonParser(pdfPath) {
   return new Promise((resolve, reject) => {
     // Cross-platform: detect OS to use correct venv path
-    // Windows: venv/Scripts/python.exe  |  Linux: venv/bin/python3
+    // Windows: .venv/Scripts/python.exe  |  Linux: .venv/bin/python3
     const isWindows = process.platform === "win32";
     const backendDir = path.join(__dirname, "..", "backend");
-    const pythonPath = path.join(backendDir, "venv", isWindows ? "Scripts" : "bin", isWindows ? "python.exe" : "python3");
+    const pythonPath = path.join(backendDir, ".venv", isWindows ? "Scripts" : "bin", isWindows ? "python.exe" : "python3");
     const scriptPath = path.join(backendDir, "scripts", "parse_single.py");
 
     console.log(`[AI Pipeline] Spawning script: ${pythonPath} ${scriptPath} "${pdfPath}"`);
@@ -1027,6 +1029,11 @@ function runPythonParser(pdfPath) {
 
     let stdoutData = "";
     let stderrData = "";
+
+    // Handle spawn errors (e.g. python executable not found) gracefully so Node doesn't crash
+    pyProcess.on("error", (spawnErr) => {
+      reject(new Error(`[AI Pipeline] Failed to spawn Python process: ${spawnErr.message}. Check that the virtual environment exists at: ${pythonPath}`));
+    });
 
     pyProcess.stdout.on("data", (data) => {
       stdoutData += data.toString();
@@ -1038,7 +1045,30 @@ function runPythonParser(pdfPath) {
 
     pyProcess.on("close", (code) => {
       if (code !== 0) {
-        return reject(new Error(`Python process exited with code ${code}. Stderr: ${stderrData}`));
+        // parse_single.py prints errors as JSON to stdout (not stderr).
+        // Try to extract the JSON error message before falling back to a generic message.
+        let pyErrorMsg = "";
+        try {
+          const lines = stdoutData.trim().split("\n");
+          for (let i = lines.length - 1; i >= 0; i--) {
+            const trimmed = lines[i].trim();
+            if (trimmed.startsWith("{")) {
+              const parsed = JSON.parse(trimmed);
+              if (parsed.error) {
+                pyErrorMsg = parsed.error;
+                if (parsed.traceback) {
+                  console.error(`[AI Pipeline] Python traceback:\n${parsed.traceback}`);
+                }
+              }
+              break;
+            }
+          }
+        } catch (_) { /* ignore JSON parse errors during error extraction */ }
+
+        const fullError = pyErrorMsg || stderrData || stdoutData.substring(0, 800) || "Unknown Python error";
+        console.error(`[AI Pipeline] Python stdout dump:\n${stdoutData.substring(0, 1000)}`);
+        console.error(`[AI Pipeline] Python stderr dump:\n${stderrData.substring(0, 500)}`);
+        return reject(new Error(`Python process exited with code ${code}. Error: ${fullError}`));
       }
       try {
         // Library logs (YOLO, PaddleOCR, BertNER) pollute stdout before the JSON result.
@@ -1053,10 +1083,13 @@ function runPythonParser(pdfPath) {
           }
         }
         if (!jsonLine) {
+          console.error(`[AI Pipeline] Python stdout dump:\n${stdoutData.substring(0, 1000)}`);
           return reject(new Error(`No JSON found in Python stdout. Output: ${stdoutData.substring(0, 500)}`));
         }
         const parsed = JSON.parse(jsonLine);
         if (parsed.error) {
+          console.error(`[AI Pipeline] Python error: ${parsed.error}`);
+          if (parsed.traceback) console.error(`[AI Pipeline] Python traceback:\n${parsed.traceback}`);
           return reject(new Error(`Python script internal error: ${parsed.error}`));
         }
         resolve(parsed);
@@ -1165,7 +1198,7 @@ ${(candidate.rawText || "").substring(0, 3000)}`;
     if (isGemini) {
       console.log("[AI Pipeline] Using Gemini AI for CV comparison & entity extraction");
       hostname = "generativelanguage.googleapis.com";
-      path = `/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+      path = `/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
       requestBody = JSON.stringify({
         contents: [{ parts: [{ text: promptText }] }],
         generationConfig: { responseMimeType: "application/json" }
@@ -1450,6 +1483,9 @@ async function processCVApplication(applicationId) {
     }
     const mergedRoles = Array.from(new Set(candidateRawRoles.map(r => typeof r === 'string' ? r.trim() : r).filter(Boolean)));
 
+    const candidateEmail = parserResult.entities?.EMAIL || application.email || "";
+    const candidatePhone = parserResult.entities?.PHONE || application.phone || "";
+
     const updatedData = {
       rawText: parserResult.raw_text || application.rawText || "",
       skills: mergedSkills,
@@ -1462,7 +1498,9 @@ async function processCVApplication(applicationId) {
       experienceMatch: comparisonResult.experienceMatch || "-",
       explanation: comparisonResult.explanation || "",
       isRecommended: comparisonResult.isRecommended || false,
-      status: comparisonResult.isRecommended ? "Shortlisted" : "Rejected"
+      status: comparisonResult.isRecommended ? "Shortlisted" : "Rejected",
+      email: candidateEmail,
+      phone: candidatePhone
     };
 
     if (useLocalDb) {
@@ -1551,35 +1589,171 @@ app.post("/api/applications/:id/analyze", authMiddleware, async (req, res) => {
   }
 });
 
-// Send email to a candidate (marks as sent, prevents future clicks)
+async function sendEmailViaEmailJS({ to_name, to_email, job_title, match_score, explanation }) {
+  const serviceId = process.env.EMAILJS_SERVICE_ID || "service_iein0zd";
+  const templateId = process.env.EMAILJS_TEMPLATE_ID || "template_la8776r";
+  const publicKey = process.env.EMAILJS_PUBLIC_KEY || "UdPCaVgF50BTauCMv";
+  const privateKey = process.env.EMAILJS_PRIVATE_KEY || "oBe1SHlAtGoxWLPfIAtlF";
+
+  if (!to_email) {
+    console.warn("[EmailJS] Cannot send email: recipient address is empty.");
+    return { success: false, error: "Recipient email is missing" };
+  }
+
+  const payload = JSON.stringify({
+    service_id: serviceId,
+    template_id: templateId,
+    user_id: publicKey,
+    accessToken: privateKey,
+    template_params: {
+      candidate_email: to_email,
+      to_email: to_email,
+      user_email: to_email,
+      applicant_email: to_email,
+      email: to_email,
+      name: to_name || "Candidate",
+      to_name: to_name || "Candidate",
+      title: job_title || "Position",
+      job_title: job_title || "Position",
+      match_score: match_score ? `${match_score}%` : "",
+      explanation: explanation || "",
+      message: `Dear ${to_name},\n\nWe are pleased to inform you that your application for the ${job_title} position has been reviewed.\n\nMatch Score: ${match_score}%\nAI Feedback: ${explanation}\n\nOur recruitment team will be in touch with you soon.\n\nBest regards,\nSmartHire HR Team`
+    }
+  });
+
+  return new Promise((resolve) => {
+    const req = https.request({
+      hostname: "api.emailjs.com",
+      port: 443,
+      path: "/api/v1.0/email/send",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(payload)
+      },
+      timeout: 15000
+    }, (res) => {
+      let body = "";
+      res.on("data", chunk => body += chunk);
+      res.on("end", () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          console.log(`[EmailJS] Successfully sent email to ${to_email}`);
+          resolve({ success: true, message: body });
+        } else {
+          console.error(`[EmailJS] Response status ${res.statusCode} for ${to_email}: ${body}`);
+          resolve({ success: false, status: res.statusCode, error: body });
+        }
+      });
+    });
+
+    req.on("error", (err) => {
+      console.error("[EmailJS] HTTPS request error:", err.message);
+      resolve({ success: false, error: err.message });
+    });
+
+    req.on("timeout", () => {
+      req.destroy();
+      resolve({ success: false, error: "Timeout sending email via EmailJS" });
+    });
+
+    req.write(payload);
+    req.end();
+  });
+}
+
+// Send email to a candidate (via EmailJS & marks as sent in database)
 app.post("/api/applications/:id/send-email", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { jobId, applicantId, applicantName } = req.body;
+    const { jobId, applicantId, applicantName, matchScore, explanation } = req.body;
 
     if (req.user.role !== "hr") {
       return res.status(403).json({ message: "Access denied. Only HR can send emails." });
+    }
+
+    let application;
+    let jobTitle = "Job Position";
+    let recipientEmail = "";
+
+    if (useLocalDb) {
+      const applications = readApplications();
+      application = applications.find(a => a._id === id || a.id === id);
+    } else {
+      application = await Application.findById(id);
+    }
+
+    if (application) {
+      recipientEmail = application.email;
+      if (!recipientEmail && application.applicantId) {
+        if (useLocalDb) {
+          const users = readUsers();
+          const u = users.find(usr => usr._id === application.applicantId);
+          if (u) recipientEmail = u.email;
+        } else {
+          const u = await User.findById(application.applicantId);
+          if (u) recipientEmail = u.email;
+        }
+      }
+      if (!recipientEmail && application.rawText) {
+        const regexInfo = extractContactFromRawText(application.rawText);
+        recipientEmail = regexInfo.email;
+      }
+
+      const targetJobId = application.jobId || jobId;
+      if (targetJobId) {
+        if (useLocalDb) {
+          const jobs = readJobs();
+          const j = jobs.find(jb => jb._id === targetJobId);
+          if (j) jobTitle = j.title;
+        } else {
+          const j = await Job.findById(targetJobId);
+          if (j) jobTitle = j.title;
+        }
+      }
+    } else {
+      recipientEmail = req.body.email || "";
+    }
+
+    const candidateName = applicantName || application?.applicantName || "Candidate";
+
+    if (recipientEmail) {
+      console.log(`[Send Email] Dispatching email to ${candidateName} <${recipientEmail}> for job "${jobTitle}"...`);
+      const emailResult = await sendEmailViaEmailJS({
+        to_name: candidateName,
+        to_email: recipientEmail,
+        job_title: jobTitle,
+        match_score: matchScore || application?.matchScore || 0,
+        explanation: explanation || application?.explanation || ""
+      });
+      if (!emailResult.success) {
+        return res.status(400).json({
+          message: `EmailJS error: ${emailResult.error || "Account not found or misconfigured"}. Please verify your Public Key and Service ID in the .env file.`
+        });
+      }
+    } else {
+      console.warn(`[Send Email] Warning: Candidate email missing for application ${id}`);
+      return res.status(400).json({ message: "No email address found for this candidate." });
     }
 
     if (useLocalDb) {
       const applications = readApplications();
       let app = applications.find(a => a._id === id || a.id === id);
       if (!app) {
-        // Create placeholder application for mock results in local database
         app = {
           _id: id,
           jobId: jobId || "j4",
           applicantId: applicantId || "a4",
-          applicantName: applicantName || "Dinithi Jayasuriya",
-          fileName: `${(applicantName || "Candidate").replace(/\s+/g, '_')}_CV.pdf`,
+          applicantName: candidateName,
+          email: recipientEmail,
+          fileName: `${candidateName.replace(/\s+/g, '_')}_CV.pdf`,
           cvUrl: "#",
           status: "Pending",
           emailSent: true,
-          matchScore: req.body.matchScore || 0,
+          matchScore: matchScore || 0,
           skillsMatched: req.body.skillsMatched || [],
           educationMatch: req.body.educationMatch || "",
           experienceMatch: req.body.experienceMatch || "",
-          explanation: req.body.explanation || "",
+          explanation: explanation || "",
           isRecommended: req.body.isRecommended || false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -1590,30 +1764,30 @@ app.post("/api/applications/:id/send-email", authMiddleware, async (req, res) =>
           return res.status(400).json({ message: "Email has already been sent to this candidate" });
         }
         app.emailSent = true;
+        if (recipientEmail) app.email = recipientEmail;
         app.updatedAt = new Date().toISOString();
       }
       writeApplications(applications);
-      return res.json({ ...app, id: app._id });
+      return res.json({ ...app, id: app._id, recipientEmail });
     }
 
     // MongoDB path
-    let application = await Application.findById(id);
     if (!application) {
-      // Create placeholder application for mock results in MongoDB
       application = new Application({
         _id: id,
         jobId: jobId || "j4",
         applicantId: applicantId || "a4",
-        applicantName: applicantName || "Dinithi Jayasuriya",
-        fileName: `${(applicantName || "Candidate").replace(/\s+/g, '_')}_CV.pdf`,
+        applicantName: candidateName,
+        email: recipientEmail,
+        fileName: `${candidateName.replace(/\s+/g, '_')}_CV.pdf`,
         cvUrl: "#",
         status: "Pending",
         emailSent: true,
-        matchScore: req.body.matchScore || 0,
+        matchScore: matchScore || 0,
         skillsMatched: req.body.skillsMatched || [],
         educationMatch: req.body.educationMatch || "",
         experienceMatch: req.body.experienceMatch || "",
-        explanation: req.body.explanation || "",
+        explanation: explanation || "",
         isRecommended: req.body.isRecommended || false
       });
       await application.save();
@@ -1622,10 +1796,12 @@ app.post("/api/applications/:id/send-email", authMiddleware, async (req, res) =>
         return res.status(400).json({ message: "Email has already been sent to this candidate" });
       }
       application.emailSent = true;
+      if (recipientEmail) application.email = recipientEmail;
       await application.save();
     }
     const obj = application.toObject();
     obj.id = obj._id;
+    obj.recipientEmail = recipientEmail;
     res.json(obj);
   } catch (error) {
     console.error("Send email error:", error);
@@ -1692,6 +1868,15 @@ ${rawText.substring(0, 4000)}
   return JSON.parse(jsonString);
 }
 
+function extractContactFromRawText(text) {
+  if (!text) return { email: "", phone: "" };
+  const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  const email = emailMatch ? emailMatch[0] : "";
+  const phoneMatch = text.match(/(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,4}/);
+  const phone = phoneMatch ? phoneMatch[0].trim() : "";
+  return { email, phone };
+}
+
 // Fetch candidate email and phone details dynamically (HR access only)
 app.get("/api/applications/:id/contact-info", authMiddleware, async (req, res) => {
   try {
@@ -1706,28 +1891,43 @@ app.get("/api/applications/:id/contact-info", authMiddleware, async (req, res) =
       if (!app) {
         return res.json(getMockContactDetails(id));
       }
-      if (app.email && app.phone) {
-        return res.json({ name: app.applicantName, email: app.email, phone: app.phone });
+      if (app.email || app.phone) {
+        const regexInfo = extractContactFromRawText(app.rawText || "");
+        return res.json({
+          name: app.applicantName,
+          email: app.email || regexInfo.email || "",
+          phone: app.phone || regexInfo.phone || ""
+        });
       }
       if (app.rawText) {
         try {
           const contact = await extractContactInfoWithGemini(app.rawText);
+          const regexInfo = extractContactFromRawText(app.rawText);
+          const finalEmail = contact.email || regexInfo.email || "";
+          const finalPhone = contact.phone || regexInfo.phone || "";
+
           // Cache extracted contact info to avoid future API calls
           const allApps = readApplications();
           const cacheIdx = allApps.findIndex(a => a._id === id || a.id === id);
           if (cacheIdx !== -1) {
-            allApps[cacheIdx].email = contact.email || "";
-            allApps[cacheIdx].phone = contact.phone || "";
+            allApps[cacheIdx].email = finalEmail;
+            allApps[cacheIdx].phone = finalPhone;
             allApps[cacheIdx].updatedAt = new Date().toISOString();
             writeApplications(allApps);
           }
           return res.json({
             name: contact.name || app.applicantName,
-            email: contact.email || "",
-            phone: contact.phone || ""
+            email: finalEmail,
+            phone: finalPhone
           });
         } catch (err) {
           console.error("Gemini contact extraction failed (local DB):", err.message);
+          const regexInfo = extractContactFromRawText(app.rawText);
+          return res.json({
+            name: app.applicantName,
+            email: regexInfo.email || "",
+            phone: regexInfo.phone || ""
+          });
         }
       }
       return res.json({ name: app.applicantName, email: app.email || "", phone: app.phone || "" });
@@ -1739,20 +1939,39 @@ app.get("/api/applications/:id/contact-info", authMiddleware, async (req, res) =
       return res.json(getMockContactDetails(id));
     }
 
+    if (application.email || application.phone) {
+      const regexInfo = extractContactFromRawText(application.rawText || "");
+      return res.json({
+        name: application.applicantName,
+        email: application.email || regexInfo.email || "",
+        phone: application.phone || regexInfo.phone || ""
+      });
+    }
+
     if (application.rawText) {
       try {
         const contact = await extractContactInfoWithGemini(application.rawText);
+        const regexInfo = extractContactFromRawText(application.rawText);
+        const finalEmail = contact.email || regexInfo.email || "";
+        const finalPhone = contact.phone || regexInfo.phone || "";
+
         // Cache extracted contact info to avoid future API calls
         await Application.findByIdAndUpdate(id, {
-          $set: { email: contact.email || "", phone: contact.phone || "" }
+          $set: { email: finalEmail, phone: finalPhone }
         });
         return res.json({
           name: contact.name || application.applicantName,
-          email: contact.email || "",
-          phone: contact.phone || ""
+          email: finalEmail,
+          phone: finalPhone
         });
       } catch (err) {
         console.error("Gemini contact extraction failed (MongoDB):", err.message);
+        const regexInfo = extractContactFromRawText(application.rawText);
+        return res.json({
+          name: application.applicantName,
+          email: regexInfo.email || "",
+          phone: regexInfo.phone || ""
+        });
       }
     }
 
