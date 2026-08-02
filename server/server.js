@@ -2269,18 +2269,40 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
       const rolesList = roles.split(",").map(r => r.trim()).filter(Boolean);
       if (rolesList.length > 0) {
         const roleRegexes = rolesList.map(r => new RegExp(r.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), "i"));
-        const matchingJobs = await Job.find({ title: { $in: roleRegexes } }).select("_id id");
-        const matchingJobIds = matchingJobs.map(j => j._id.toString()).concat(matchingJobs.map(j => j.id || j._id));
+        const matchingJobs = await Job.find({
+          $or: roleRegexes.map(regex => ({ title: { $regex: regex } }))
+        }).select("_id id title");
 
-        filter.$or = [
-          { roles: { $in: roleRegexes } },
-          { jobId: { $in: matchingJobIds } }
-        ];
+        const matchingJobIdStrings = matchingJobs.map(j => (j._id || j.id).toString());
+        const matchingJobObjectIds = matchingJobIdStrings
+          .filter(idStr => mongoose.Types.ObjectId.isValid(idStr))
+          .map(idStr => new mongoose.Types.ObjectId(idStr));
+
+        const allJobIdMatches = [...matchingJobIdStrings, ...matchingJobObjectIds];
+
+        filter.$and = filter.$and || [];
+        const roleOrConditions = roleRegexes.map(regex => ({ roles: { $regex: regex } }));
+
+        if (allJobIdMatches.length > 0) {
+          roleOrConditions.push({ jobId: { $in: allJobIdMatches } });
+        }
+
+        filter.$and.push({ $or: roleOrConditions });
       }
     }
 
     if (query) {
-      filter.$text = { $search: query };
+      const queryRegex = new RegExp(query.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), "i");
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { applicantName: { $regex: queryRegex } },
+          { rawText: { $regex: queryRegex } },
+          { skills: { $regex: queryRegex } },
+          { skillsMatched: { $regex: queryRegex } },
+          { roles: { $regex: queryRegex } }
+        ]
+      });
     }
 
     if (useLocalDb) {
@@ -2302,8 +2324,8 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
       if (skills) {
         const skillsList = skills.toLowerCase().split(",").map(s => s.trim()).filter(Boolean);
         applications = applications.filter(app => {
-          const appSkills = (app.skills || []).map(s => s.toLowerCase());
-          const matchedSkills = (app.skillsMatched || []).map(s => s.toLowerCase());
+          const appSkills = (app.skills || []).map(s => String(s).toLowerCase());
+          const matchedSkills = (app.skillsMatched || []).map(s => String(s).toLowerCase());
           const allSkills = [...appSkills, ...matchedSkills];
           return skillsList.every(s => allSkills.some(as => as.includes(s)));
         });
@@ -2312,8 +2334,8 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
       if (roles) {
         const rolesList = roles.toLowerCase().split(",").map(r => r.trim()).filter(Boolean);
         applications = applications.filter(app => {
-          const appRoles = (app.roles || []).map(r => r.toLowerCase());
-          const job = jobs.find(j => j._id === app.jobId || j.id === app.jobId);
+          const appRoles = (app.roles || []).map(r => String(r).toLowerCase());
+          const job = jobs.find(j => (j._id || j.id).toString() === String(app.jobId));
           const jobTitle = job ? job.title.toLowerCase() : "";
           return rolesList.some(r =>
             appRoles.some(ar => ar.includes(r)) ||
@@ -2328,8 +2350,8 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
           return (
             (app.applicantName && app.applicantName.toLowerCase().includes(queryLower)) ||
             (app.rawText && app.rawText.toLowerCase().includes(queryLower)) ||
-            (app.skills && app.skills.some(s => s.toLowerCase().includes(queryLower))) ||
-            (app.roles && app.roles.some(r => r.toLowerCase().includes(queryLower)))
+            (app.skills && app.skills.some(s => String(s).toLowerCase().includes(queryLower))) ||
+            (app.roles && app.roles.some(r => String(r).toLowerCase().includes(queryLower)))
           );
         });
       }
@@ -2340,8 +2362,13 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
 
     // MongoDB path: Only include applications whose jobId belongs to an existing Job
     const existingJobs = await Job.find({}).select("_id");
-    const validJobIds = existingJobs.map(j => j._id.toString());
-    filter.jobId = { $in: validJobIds };
+    const validJobIdStrings = existingJobs.map(j => j._id.toString());
+    const validJobObjectIds = existingJobs
+      .map(j => j._id)
+      .filter(id => mongoose.Types.ObjectId.isValid(id.toString()))
+      .map(id => new mongoose.Types.ObjectId(id.toString()));
+
+    filter.jobId = { $in: [...validJobIdStrings, ...validJobObjectIds] };
 
     const applications = await Application.find(filter);
     const mapped = applications.map(app => {

@@ -512,6 +512,8 @@ export function CVSearch() {
                   (reqSkill) => !candidateSkillSet.has(reqSkill.toLowerCase())
                 );
 
+                const allCandidateSkills = Array.from(new Set([...matchedSkills, ...parsedSkills]));
+
                 return (
                   <div
                     key={appId}
@@ -582,6 +584,35 @@ export function CVSearch() {
                           <span>•</span>
                           <span>Applied: {new Date(app.createdAt).toLocaleDateString()}</span>
                         </div>
+
+                        {/* Green Technical Skill Badges */}
+                        {allCandidateSkills.length > 0 && (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
+                            {allCandidateSkills.slice(0, 8).map((skill, idx) => (
+                              <span
+                                key={idx}
+                                style={{
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  background: '#ecfdf5',
+                                  color: '#047857',
+                                  border: '1px solid #a7f3d0',
+                                  padding: '2px 9px',
+                                  borderRadius: '14px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                }}
+                              >
+                                {skill}
+                              </span>
+                            ))}
+                            {allCandidateSkills.length > 8 && (
+                              <span style={{ fontSize: '11px', fontWeight: 600, color: '#059669', alignSelf: 'center' }}>
+                                +{allCandidateSkills.length - 8} more
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
