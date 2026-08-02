@@ -295,6 +295,7 @@ export function HRDashboard() {
                   >
                     <option value="All">All Statuses</option>
                     <option value="Open">Open</option>
+                    <option value="Processing">Processing</option>
                     <option value="Closed">Closed</option>
                   </select>
                 </div>

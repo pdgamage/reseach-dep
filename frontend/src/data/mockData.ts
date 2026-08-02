@@ -1,4 +1,4 @@
-export type JobStatus = 'Open' | 'Closed';
+export type JobStatus = 'Open' | 'Closed' | 'Processing';
 
 export interface Job {
   id: string;
