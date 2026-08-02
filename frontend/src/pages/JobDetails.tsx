@@ -227,7 +227,11 @@ export function JobDetails() {
                     {job.title}
                   </h1>
                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
-                    <StatusBadge status={job.status} />
+                    <StatusBadge status={
+                      (new Date(job.closingDate).getTime() <= Date.now() && job.status === 'Open')
+                        ? ((jobApplications.some(a => a.status === 'Pending') || job.cvCount > 0) ? 'Processing' : 'Closed')
+                        : job.status
+                    } />
                     <CountdownBadge closingDate={job.closingDate} />
                   </div>
                 </div>

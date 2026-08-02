@@ -22,6 +22,11 @@ export function JobCard({ job, isApplicantView = false, onDelete }: JobCardProps
     }
   };
 
+  const isPastClosing = new Date(job.closingDate).getTime() <= Date.now();
+  const effectiveStatus = (isPastClosing && job.status === 'Open')
+    ? ((job.cvCount || 0) > 0 ? 'Processing' : 'Closed')
+    : job.status;
+
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col h-full">
       <div className="flex justify-between items-start mb-4">
@@ -35,7 +40,7 @@ export function JobCard({ job, isApplicantView = false, onDelete }: JobCardProps
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {!isApplicantView && <StatusBadge status={job.status} />}
+          {!isApplicantView && <StatusBadge status={effectiveStatus} />}
           {!isApplicantView && onDelete && (
             <button
               onClick={handleDelete}

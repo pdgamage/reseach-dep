@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Briefcase,
-  Users,
-  CheckCircle,
   Search,
-  Archive,
   Trash2,
 } from 'lucide-react';
 import { Job } from '../data/mockData';

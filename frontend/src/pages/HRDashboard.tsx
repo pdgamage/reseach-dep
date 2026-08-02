@@ -114,9 +114,18 @@ export function HRDashboard() {
     fetchDashboardData();
   }, []);
 
+  const getEffectiveStatus = (job: Job): JobStatus => {
+    const isPastClosing = new Date(job.closingDate).getTime() <= Date.now();
+    if (isPastClosing && job.status === 'Open') {
+      return (job.cvCount || 0) > 0 ? 'Processing' : 'Closed';
+    }
+    return job.status;
+  };
+
   const filteredJobs = jobs.filter((job) => {
     const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || job.status === statusFilter;
+    const effectiveStatus = getEffectiveStatus(job);
+    const matchesStatus = statusFilter === 'All' || effectiveStatus === statusFilter;
     return matchesSearch && matchesStatus;
   });
 

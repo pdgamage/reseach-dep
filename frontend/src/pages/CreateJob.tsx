@@ -156,7 +156,8 @@ export function CreateJob() {
       const description = (form.querySelector('#description') as HTMLTextAreaElement).value;
       const minEducation = (form.querySelector('#education') as HTMLSelectElement).value;
       const minExperience = parseInt((form.querySelector('#experience') as HTMLInputElement).value, 10);
-      const closingDate = (form.querySelector('#closingDate') as HTMLInputElement).value;
+      const rawClosingDate = (form.querySelector('#closingDate') as HTMLInputElement).value;
+      const closingDate = rawClosingDate ? new Date(rawClosingDate).toISOString() : rawClosingDate;
 
       const token = localStorage.getItem('smarthire_token');
       const response = await fetch('/api/jobs', {
