@@ -68,6 +68,7 @@ jobs:
             --exclude 'server/uploads/*.png' \
             --exclude 'server/schedules.json' \
             --exclude 'logs' \
+            --exclude 'backend/models' \
             -e "ssh -i ~/.ssh/ec2_key -o StrictHostKeyChecking=no" \
             ./ ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/home/ubuntu/smarthire/
 

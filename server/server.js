@@ -1121,7 +1121,7 @@ async function httpsRequestWithRetry(options, body, maxRetries = 2) {
                 if (retryInfo?.retryDelay) {
                   retryDelay = Math.min(parseInt(retryInfo.retryDelay) || 32, 120);
                 }
-              } catch (_) {}
+              } catch (_) { }
               reject({ __retryable: true, __delay: retryDelay });
             } else {
               reject(new Error(`API returned status ${res.statusCode}: ${responseData}`));
@@ -1196,7 +1196,7 @@ ${(candidate.rawText || "").substring(0, 3000)}`;
     const isGemini = !!geminiKey;
 
     if (isGemini) {
-      console.log("[AI Pipeline] Using Gemini AI for CV comparison & entity extraction");
+      console.log("[AI Pipeline]  CV comparison & entity extraction");
       hostname = "generativelanguage.googleapis.com";
       path = `/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
       requestBody = JSON.stringify({
@@ -1204,7 +1204,7 @@ ${(candidate.rawText || "").substring(0, 3000)}`;
         generationConfig: { responseMimeType: "application/json" }
       });
     } else {
-      console.log("[AI Pipeline] Using Grok AI for CV comparison");
+      console.log("[AI Pipeline]  for CV comparison");
       hostname = "api.xai.com";
       path = "/v1/chat/completions";
       headers["Authorization"] = `Bearer ${grokKey}`;
@@ -1445,7 +1445,7 @@ async function processCVApplication(applicationId) {
       projects: parserResult.entities.PROJECTS || [],
       rawText: parserResult.raw_text || ""
     });
-    console.log(`[AI Pipeline] Successfully completed AI comparison. Score: ${comparisonResult.matchScore}%`);
+    console.log(`[AI Pipeline] Successfully completed comparison. Score: ${comparisonResult.matchScore}%`);
 
     // 6. Update database record with parsed text, skills, and AI ratings
     const junkPatterns = [
@@ -1843,7 +1843,7 @@ ${rawText.substring(0, 4000)}
 `;
 
   const hostname = "generativelanguage.googleapis.com";
-  const path = `/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
+  const path = `/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
   const requestBody = JSON.stringify({
     contents: [{ parts: [{ text: promptText }] }],
     generationConfig: { responseMimeType: "application/json" }
@@ -2107,7 +2107,9 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
 
     if (useLocalDb) {
       let applications = readApplications();
+
       const jobs = readJobs();
+
 
       if (status) {
         applications = applications.filter(app => app.status === status);
