@@ -584,35 +584,6 @@ export function CVSearch() {
                           <span>•</span>
                           <span>Applied: {new Date(app.createdAt).toLocaleDateString()}</span>
                         </div>
-
-                        {/* Green Technical Skill Badges */}
-                        {allCandidateSkills.length > 0 && (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px' }}>
-                            {allCandidateSkills.slice(0, 8).map((skill, idx) => (
-                              <span
-                                key={idx}
-                                style={{
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  background: '#ecfdf5',
-                                  color: '#047857',
-                                  border: '1px solid #a7f3d0',
-                                  padding: '2px 9px',
-                                  borderRadius: '14px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                }}
-                              >
-                                {skill}
-                              </span>
-                            ))}
-                            {allCandidateSkills.length > 8 && (
-                              <span style={{ fontSize: '11px', fontWeight: 600, color: '#059669', alignSelf: 'center' }}>
-                                +{allCandidateSkills.length - 8} more
-                              </span>
-                            )}
-                          </div>
-                        )}
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -678,15 +649,14 @@ export function CVSearch() {
                         
                         {/* Skills & Roles */}
                         <div>
-                          {/* Matched Technical Skills */}
-                          {matchedSkills.length > 0 && (
+                          {/* Technical Skills (Green Color) */}
+                          {allCandidateSkills.length > 0 && (
                             <div style={{ marginBottom: '14px' }}>
                               <h4 style={{ fontSize: '11px', fontWeight: 700, color: '#059669', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                
-                                Technical Skills 
+                                Technical Skills ({allCandidateSkills.length})
                               </h4>
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                                {matchedSkills.map((s, i) => (
+                                {allCandidateSkills.map((s, i) => (
                                   <span key={i} style={{ fontSize: '11px', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '2px 9px', borderRadius: '14px', fontWeight: 600 }}>
                                     {s}
                                   </span>
@@ -698,7 +668,6 @@ export function CVSearch() {
                           {/* Missing Job Requirements (Red Color) */}
                           {missingSkills.length > 0 && (
                             <div style={{ marginBottom: '14px' }}>
-                              
                               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                                 {missingSkills.map((s, i) => (
                                   <span key={i} style={{ fontSize: '11px', background: '#fff1f2', color: '#be123c', border: '1px solid #fecdd3', padding: '2px 9px', borderRadius: '14px', fontWeight: 600 }}>
