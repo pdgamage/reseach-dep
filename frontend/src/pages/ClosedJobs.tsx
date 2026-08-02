@@ -113,7 +113,7 @@ export function ClosedJobs() {
   };
 
   const closedJobs = jobs.filter((job) => {
-    const isClosed = job.status === 'Closed' || new Date(job.closingDate) < new Date();
+    const isClosed = job.status === 'Closed';
     const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase());
     return isClosed && matchesSearch;
   });

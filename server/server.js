@@ -680,7 +680,7 @@ app.get("/api/auth/me", authMiddleware, async (req, res) => {
   }
 });
 
-// Helper: Check if all applications for a job are analyzed, and transition status to "Closed"
+// Helper: Transition job status based on deadline date & time and application analysis completion
 async function checkAndUpdateJobStatus(jobId) {
   try {
     if (!jobId) return;
@@ -694,11 +694,11 @@ async function checkAndUpdateJobStatus(jobId) {
       const job = jobs[jobIdx];
       const isPastClosing = new Date(job.closingDate) < now;
       const applications = readApplications();
-      const pendingApps = applications.filter(app => app.jobId === jobId && app.status === "Pending");
+      const pendingApps = applications.filter(app => (app.jobId === jobId || app.jobId === job.id) && app.status === "Pending");
 
-      let newStatus = job.status;
-      if (isPastClosing || job.status === "Processing") {
-        newStatus = pendingApps.length === 0 ? "Closed" : "Processing";
+      let newStatus = "Open";
+      if (isPastClosing) {
+        newStatus = pendingApps.length > 0 ? "Processing" : "Closed";
       }
 
       if (newStatus !== job.status) {
@@ -718,9 +718,9 @@ async function checkAndUpdateJobStatus(jobId) {
     const isPastClosing = new Date(job.closingDate) < now;
     const pendingCount = await Application.countDocuments({ jobId, status: "Pending" });
 
-    let newStatus = job.status;
-    if (isPastClosing || job.status === "Processing") {
-      newStatus = pendingCount === 0 ? "Closed" : "Processing";
+    let newStatus = "Open";
+    if (isPastClosing) {
+      newStatus = pendingCount > 0 ? "Processing" : "Closed";
     }
 
     if (newStatus !== job.status) {
@@ -744,10 +744,10 @@ app.get("/api/jobs", authMiddleware, async (req, res) => {
       let modified = false;
       const updatedJobs = jobs.map((j) => {
         const isPastClosing = new Date(j.closingDate) < now;
-        const pendingCount = applications.filter(a => a.jobId === j._id && a.status === "Pending").length;
-        let targetStatus = j.status;
-        if (isPastClosing || j.status === "Processing") {
-          targetStatus = pendingCount === 0 ? "Closed" : "Processing";
+        const pendingCount = applications.filter(a => (a.jobId === j._id || a.jobId === j.id) && a.status === "Pending").length;
+        let targetStatus = "Open";
+        if (isPastClosing) {
+          targetStatus = pendingCount > 0 ? "Processing" : "Closed";
         }
         if (targetStatus !== j.status) {
           j.status = targetStatus;
@@ -768,9 +768,9 @@ app.get("/api/jobs", authMiddleware, async (req, res) => {
     for (let j of jobs) {
       const isPastClosing = new Date(j.closingDate) < now;
       const pendingCount = await Application.countDocuments({ jobId: j._id.toString(), status: "Pending" });
-      let targetStatus = j.status;
-      if (isPastClosing || j.status === "Processing") {
-        targetStatus = pendingCount === 0 ? "Closed" : "Processing";
+      let targetStatus = "Open";
+      if (isPastClosing) {
+        targetStatus = pendingCount > 0 ? "Processing" : "Closed";
       }
       if (targetStatus !== j.status) {
         j.status = targetStatus;
