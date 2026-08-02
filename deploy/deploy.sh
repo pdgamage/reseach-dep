@@ -28,33 +28,28 @@ npm install
 npm run build
 echo "   ✅ Frontend built to dist/"
 
-# ------- 3. Setup Python Virtual Environment -------
-echo "[3/5] Setting up Python ML backend..."
+# ------- 3. Verify Python Virtual Environment -------
+# NOTE: The Python ML environment (.venv) is a ONE-TIME manual setup.
+# It includes large packages like torch (530MB) that cannot be reliably
+# installed via pip during deploy. Run setup manually using the instructions
+# in deploy/setup.sh if this check fails.
+echo "[3/5] Verifying Python ML backend..."
 cd "$PROJECT_DIR/backend"
-if [ -d "venv" ]; then
-    echo "   Removing old incompatible venv..."
-    rm -rf venv
-fi
-echo "   Creating Python 3.10 virtual environment..."
-if command -v python3.10 &>/dev/null; then
-    python3.10 -m venv venv
+if [ -d ".venv" ] && [ -f ".venv/bin/python3" ]; then
+    # Quick smoke test to confirm key packages are importable
+    if .venv/bin/python3 -c "from PIL import Image; import torch; import paddleocr" 2>/dev/null; then
+        echo "   ✅ Python .venv is healthy (PIL, torch, paddleocr OK)"
+    else
+        echo "   ⚠️  WARNING: .venv exists but some ML packages may be missing."
+        echo "   Run manual setup: source .venv/bin/activate && pip install -r requirements.txt"
+        echo "   Continuing deploy (server will start but CV parsing may fail)..."
+    fi
 else
-    python3 -m venv venv
+    echo "   ❌ ERROR: Python .venv not found at $PROJECT_DIR/backend/.venv"
+    echo "   CV parsing will be unavailable until you manually set up the venv."
+    echo "   See deploy/setup.sh for instructions."
+    echo "   Continuing deploy anyway..."
 fi
-source venv/bin/activate
-
-# Redirect pip temporary directory to use root volume instead of limited /tmp RAM disk
-export TMPDIR="/home/ubuntu/pip_tmp"
-mkdir -p "$TMPDIR"
-
-pip install --no-cache-dir --upgrade pip -q
-pip install --no-cache-dir -r requirements.txt -q
-
-# Clean up temp dir
-rm -rf "$TMPDIR"
-python3 -m spacy download en_core_web_sm -q 2>/dev/null || true
-deactivate
-echo "   ✅ Python environment ready"
 
 # ------- 4. Configure Nginx -------
 echo "[4/5] Configuring Nginx..."
