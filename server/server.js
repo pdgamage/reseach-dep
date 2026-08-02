@@ -1198,7 +1198,7 @@ ${(candidate.rawText || "").substring(0, 3000)}`;
     if (isGemini) {
       console.log("[AI Pipeline]  CV comparison & entity extraction");
       hostname = "generativelanguage.googleapis.com";
-      path = `/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
+      path = `/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
       requestBody = JSON.stringify({
         contents: [{ parts: [{ text: promptText }] }],
         generationConfig: { responseMimeType: "application/json" }
