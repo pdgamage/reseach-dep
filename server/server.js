@@ -1667,7 +1667,7 @@ ${rawText.substring(0, 4000)}
 `;
 
   const hostname = "generativelanguage.googleapis.com";
-  const path = `/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`;
+  const path = `/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
   const requestBody = JSON.stringify({
     contents: [{ parts: [{ text: promptText }] }],
     generationConfig: { responseMimeType: "application/json" }
