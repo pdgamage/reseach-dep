@@ -120,6 +120,23 @@ export function HRDashboard() {
     return matchesSearch && matchesStatus;
   });
 
+  const handleDeleteJob = async (jobId: string) => {
+    try {
+      const token = localStorage.getItem('smarthire_token');
+      const res = await fetch(`/api/jobs/${jobId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to delete job');
+      const data = await res.json();
+      setJobs((prev) => prev.filter((j) => (j.id || (j as any)._id) !== jobId));
+      toast.success(`Job deleted. ${data.deletedApplications} application(s) removed.`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to delete job');
+    }
+  };
+
   /* ── Loading Skeleton ── */
   if (loading) {
     return (

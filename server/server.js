@@ -730,19 +730,24 @@ app.get("/api/dashboard/stats", authMiddleware, async (req, res) => {
     if (useLocalDb) {
       const jobs = readJobs();
       const applications = readApplications();
+      const validJobIds = new Set(jobs.map(j => j._id || j.id));
 
+      const validApps = applications.filter(app => validJobIds.has(app.jobId));
       const totalJobs = jobs.length;
       const openJobs = jobs.filter(j => j.status === "Open").length;
-      const totalCVs = applications.length;
-      const shortlisted = applications.filter(app => app.status === "Shortlisted").length;
+      const totalCVs = validApps.length;
+      const shortlisted = validApps.filter(app => app.status === "Shortlisted").length;
 
       return res.json({ totalJobs, openJobs, totalCVs, shortlisted });
     }
 
+    const existingJobs = await Job.find({}).select("_id");
+    const validJobIds = existingJobs.map(j => j._id.toString());
+
     const totalJobs = await Job.countDocuments({});
     const openJobs = await Job.countDocuments({ status: "Open" });
-    const totalCVs = await Application.countDocuments({});
-    const shortlisted = await Application.countDocuments({ status: "Shortlisted" });
+    const totalCVs = await Application.countDocuments({ jobId: { $in: validJobIds } });
+    const shortlisted = await Application.countDocuments({ jobId: { $in: validJobIds }, status: "Shortlisted" });
 
     res.json({ totalJobs, openJobs, totalCVs, shortlisted });
   } catch (error) {
@@ -810,6 +815,71 @@ app.post("/api/jobs", authMiddleware, async (req, res) => {
   } catch (error) {
     console.error("Create job error:", error);
     res.status(500).json({ message: "Server error creating job" });
+  }
+});
+
+// Delete a job post and all its associated applications (HR only)
+app.delete("/api/jobs/:id", authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== "hr") {
+      return res.status(403).json({ message: "Access denied. Only HR can delete jobs." });
+    }
+    const { id } = req.params;
+
+    if (useLocalDb) {
+      const jobs = readJobs();
+      const jobIndex = jobs.findIndex((j) => j._id === id);
+      if (jobIndex === -1) return res.status(404).json({ message: "Job not found" });
+
+      // Remove the job
+      jobs.splice(jobIndex, 1);
+      writeJobs(jobs);
+
+      // Remove all applications for this job
+      const applications = readApplications();
+      const remaining = applications.filter((a) => a.jobId !== id);
+      writeApplications(remaining);
+
+      // Remove all interview schedules for this job
+      const schedules = readSchedules();
+      const remainingSchedules = schedules.filter((s) => s.jobId !== id);
+      writeSchedules(remainingSchedules);
+
+      const deletedCount = applications.length - remaining.length;
+      return res.json({ message: "Job, applications, and interview schedules deleted successfully", deletedApplications: deletedCount });
+    }
+
+    // MongoDB path
+    const job = await Job.findById(id);
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    // Delete all applications for this job, and clean up Cloudinary CVs
+    const applications = await Application.find({ jobId: id });
+    for (const app of applications) {
+      if (app.cvUrl && app.cvUrl.includes("cloudinary.com") && process.env.CLOUDINARY_CLOUD_NAME) {
+        try {
+          // Extract public_id from Cloudinary URL
+          const urlParts = app.cvUrl.split("/");
+          const folderAndFile = urlParts.slice(-2).join("/"); // e.g. smarthire_cvs/cv_xxx
+          const publicId = folderAndFile.split(".")[0]; // strip extension if any
+          await cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
+        } catch (cloudErr) {
+          console.warn(`[Delete Job] Failed to delete Cloudinary CV for app ${app._id}:`, cloudErr.message);
+        }
+      }
+    }
+
+    const deletedAppsResult = await Application.deleteMany({ jobId: id });
+    await InterviewSchedule.deleteMany({ jobId: id });
+    await Job.findByIdAndDelete(id);
+
+    res.json({
+      message: "Job, applications, and interview schedules deleted successfully",
+      deletedApplications: deletedAppsResult.deletedCount,
+    });
+  } catch (error) {
+    console.error("Delete job error:", error);
+    res.status(500).json({ message: "Server error deleting job" });
   }
 });
 
@@ -2133,9 +2203,11 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
 
     if (useLocalDb) {
       let applications = readApplications();
-
       const jobs = readJobs();
+      const validJobIds = new Set(jobs.map(j => j._id || j.id));
 
+      // Filter out orphaned applications (where job has been deleted)
+      applications = applications.filter(app => validJobIds.has(app.jobId));
 
       if (status) {
         applications = applications.filter(app => app.status === status);
@@ -2183,6 +2255,11 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
       const mapped = applications.map(app => ({ ...app, id: app._id }));
       return res.json(mapped);
     }
+
+    // MongoDB path: Only include applications whose jobId belongs to an existing Job
+    const existingJobs = await Job.find({}).select("_id");
+    const validJobIds = existingJobs.map(j => j._id.toString());
+    filter.jobId = { $in: validJobIds };
 
     const applications = await Application.find(filter);
     const mapped = applications.map(app => {

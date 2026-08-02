@@ -5,7 +5,7 @@ import {
   CheckCircle,
   Search,
   Archive,
-  
+  Trash2,
 } from 'lucide-react';
 import { Job } from '../data/mockData';
 import { JobCard } from '../components/JobCard';
@@ -23,6 +23,10 @@ const pageStyles = `
   @keyframes shimmer {
     0%   { background-position: -600px 0; }
     100% { background-position: 600px 0; }
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
   }
 
   .cj-fade { animation: fadeIn 0.3s ease forwards; }
@@ -58,6 +62,10 @@ export function ClosedJobs() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Delete popup state
+  const [jobToDelete, setJobToDelete] = useState<Job | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   useEffect(() => {
     const fetchJobs = async () => {
       try {
@@ -77,6 +85,32 @@ export function ClosedJobs() {
     };
     fetchJobs();
   }, []);
+
+  const confirmDeleteJob = async () => {
+    if (!jobToDelete) return;
+    const targetId = (jobToDelete.id || (jobToDelete as any)._id) as string;
+    setIsDeleting(true);
+
+    try {
+      const token = localStorage.getItem('smarthire_token');
+      const res = await fetch(`/api/jobs/${targetId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) throw new Error('Failed to delete job');
+      const data = await res.json();
+
+      setJobs((prev) => prev.filter((j) => (j.id || (j as any)._id) !== targetId));
+      toast.success(`Job deleted along with ${data.deletedApplications || 0} applicant record(s).`);
+      setJobToDelete(null);
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to delete job');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const closedJobs = jobs.filter((job) => {
     const isClosed = job.status === 'Closed' || new Date(job.closingDate) < new Date();
@@ -115,7 +149,6 @@ export function ClosedJobs() {
           
           {/* Header */}
           <div className="cj-fade" style={{ marginBottom: '32px' }}>
-            
             <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
               Closed Jobs
             </h1>
@@ -184,7 +217,11 @@ export function ClosedJobs() {
               {closedJobs.length > 0 ? (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
                   {closedJobs.map((job) => (
-                    <JobCard key={job.id || (job as any)._id} job={job} />
+                    <JobCard
+                      key={job.id || (job as any)._id}
+                      job={job}
+                      onDelete={(selectedJob) => setJobToDelete(selectedJob)}
+                    />
                   ))}
                 </div>
               ) : (
@@ -204,6 +241,100 @@ export function ClosedJobs() {
 
         </div>
       </div>
+
+      {/* Simple, Compact Warning Popup */}
+      {jobToDelete && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            background: 'rgba(15, 23, 42, 0.5)',
+            backdropFilter: 'blur(3px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={() => !isDeleting && setJobToDelete(null)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              maxWidth: '380px',
+              width: '100%',
+              padding: '24px',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
+              textAlign: 'center',
+              animation: 'popIn 0.18s ease-out',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            
+
+            <h3 style={{ fontSize: '17px', fontWeight: 700, color: '#0f172a', margin: '0 0 8px' }}>
+              Delete Job Post?
+            </h3>
+
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 20px', lineHeight: '1.5' }}>
+              Are you sure you want to delete <strong style={{ color: '#0f172a' }}>"{jobToDelete.title}"</strong>? All associated applicant details and CVs will be permanently removed.
+            </p>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button
+                type="button"
+                onClick={() => setJobToDelete(null)}
+                disabled={isDeleting}
+                style={{
+                  flex: 1,
+                  padding: '9px 16px',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  border: '1px solid #cbd5e1',
+                  background: '#fff',
+                  color: '#475569',
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmDeleteJob}
+                disabled={isDeleting}
+                style={{
+                  flex: 1,
+                  padding: '9px 16px',
+                  borderRadius: '10px',
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  border: 'none',
+                  background: isDeleting ? '#94a3b8' : '#dc2626',
+                  color: '#fff',
+                  cursor: isDeleting ? 'not-allowed' : 'pointer',
+                  fontFamily: 'inherit',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                {isDeleting ? 'Deleting...' : (
+                  <>
+                    <Trash2 style={{ width: '14px', height: '14px' }} />
+                    Delete
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
