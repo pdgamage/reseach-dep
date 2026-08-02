@@ -680,16 +680,77 @@ app.get("/api/auth/me", authMiddleware, async (req, res) => {
   }
 });
 
+// Helper: Check if all applications for a job are analyzed, and transition status to "Closed"
+async function checkAndUpdateJobStatus(jobId) {
+  try {
+    if (!jobId) return;
+    const now = new Date();
+
+    if (useLocalDb) {
+      const jobs = readJobs();
+      const jobIdx = jobs.findIndex(j => j._id === jobId || j.id === jobId);
+      if (jobIdx === -1) return;
+
+      const job = jobs[jobIdx];
+      const isPastClosing = new Date(job.closingDate) < now;
+      const applications = readApplications();
+      const pendingApps = applications.filter(app => app.jobId === jobId && app.status === "Pending");
+
+      let newStatus = job.status;
+      if (isPastClosing || job.status === "Processing") {
+        newStatus = pendingApps.length === 0 ? "Closed" : "Processing";
+      }
+
+      if (newStatus !== job.status) {
+        const oldStatus = job.status;
+        jobs[jobIdx].status = newStatus;
+        jobs[jobIdx].updatedAt = now.toISOString();
+        writeJobs(jobs);
+        console.log(`[Job Status Update] Job "${job.title}" (${jobId}) status updated: ${oldStatus} -> ${newStatus}`);
+      }
+      return;
+    }
+
+    // MongoDB path
+    const job = await Job.findById(jobId);
+    if (!job) return;
+
+    const isPastClosing = new Date(job.closingDate) < now;
+    const pendingCount = await Application.countDocuments({ jobId, status: "Pending" });
+
+    let newStatus = job.status;
+    if (isPastClosing || job.status === "Processing") {
+      newStatus = pendingCount === 0 ? "Closed" : "Processing";
+    }
+
+    if (newStatus !== job.status) {
+      const oldStatus = job.status;
+      job.status = newStatus;
+      await job.save();
+      console.log(`[Job Status Update] Job "${job.title}" (${jobId}) status updated: ${oldStatus} -> ${newStatus}`);
+    }
+  } catch (err) {
+    console.error(`[Job Status Update] Error checking status for job ${jobId}:`, err.message);
+  }
+}
+
 // Job API Routes
 app.get("/api/jobs", authMiddleware, async (req, res) => {
   try {
     const now = new Date();
     if (useLocalDb) {
       const jobs = readJobs();
+      const applications = readApplications();
       let modified = false;
       const updatedJobs = jobs.map((j) => {
-        if (j.status === "Open" && new Date(j.closingDate) < now) {
-          j.status = "Processing";
+        const isPastClosing = new Date(j.closingDate) < now;
+        const pendingCount = applications.filter(a => a.jobId === j._id && a.status === "Pending").length;
+        let targetStatus = j.status;
+        if (isPastClosing || j.status === "Processing") {
+          targetStatus = pendingCount === 0 ? "Closed" : "Processing";
+        }
+        if (targetStatus !== j.status) {
+          j.status = targetStatus;
           j.updatedAt = now.toISOString();
           modified = true;
         }
@@ -705,8 +766,14 @@ app.get("/api/jobs", authMiddleware, async (req, res) => {
     const jobs = await Job.find({});
     const mapped = [];
     for (let j of jobs) {
-      if (j.status === "Open" && new Date(j.closingDate) < now) {
-        j.status = "Processing";
+      const isPastClosing = new Date(j.closingDate) < now;
+      const pendingCount = await Application.countDocuments({ jobId: j._id.toString(), status: "Pending" });
+      let targetStatus = j.status;
+      if (isPastClosing || j.status === "Processing") {
+        targetStatus = pendingCount === 0 ? "Closed" : "Processing";
+      }
+      if (targetStatus !== j.status) {
+        j.status = targetStatus;
         await j.save();
       }
       const obj = j.toObject();
@@ -1608,6 +1675,9 @@ async function processCVApplication(applicationId) {
     }
 
     console.log(`[AI Pipeline] Completed analysis successfully for Application ID: ${applicationId}`);
+    
+    // Automatically update job status (Processing -> Closed if no pending applications remain)
+    await checkAndUpdateJobStatus(application.jobId);
   } catch (err) {
     console.error(`[AI Pipeline] Error during CV background processing:`, err);
     throw err;
@@ -2315,6 +2385,7 @@ app.post("/api/applications/:id/status", authMiddleware, async (req, res) => {
       };
 
       writeApplications(applications);
+      await checkAndUpdateJobStatus(applications[idx].jobId);
       return res.json({ ...applications[idx], id: applications[idx]._id });
     }
 
@@ -2334,6 +2405,7 @@ app.post("/api/applications/:id/status", authMiddleware, async (req, res) => {
     });
 
     await app.save();
+    await checkAndUpdateJobStatus(app.jobId);
     const obj = app.toObject();
     obj.id = obj._id;
     res.json(obj);

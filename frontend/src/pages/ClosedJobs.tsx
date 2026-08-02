@@ -157,40 +157,7 @@ export function ClosedJobs() {
             </p>
           </div>
 
-          {/* Stats Grid */}
-          <div className="cj-fade" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px', marginBottom: '32px', animationDelay: '40ms' }}>
-            
-            <div className="cj-stat-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Closed Vacancies</p>
-                <h3 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: 0 }}>{totalClosedJobs}</h3>
-              </div>
-              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#4f46e5' }}>
-                <Archive style={{ width: '22px', height: '22px' }} />
-              </div>
-            </div>
-
-            <div className="cj-stat-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Total CVs Received</p>
-                <h3 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: 0 }}>{totalCVsInClosed}</h3>
-              </div>
-              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#fef3c7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706' }}>
-                <Users style={{ width: '22px', height: '22px' }} />
-              </div>
-            </div>
-
-            <div className="cj-stat-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <p style={{ fontSize: '12px', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>Evaluation Completed</p>
-                <h3 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', margin: 0 }}>{completedJobsCount}</h3>
-              </div>
-              <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#f0fdf4', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16a34a' }}>
-                <CheckCircle style={{ width: '22px', height: '22px' }} />
-              </div>
-            </div>
-
-          </div>
+          
 
           {/* List Card Container */}
           <div className="cj-fade" style={{ background: '#fff', border: '1px solid #e8eaed', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.03)', animationDelay: '80ms' }}>
