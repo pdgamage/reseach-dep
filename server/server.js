@@ -826,9 +826,11 @@ app.get("/api/dashboard/stats", authMiddleware, async (req, res) => {
 app.get("/api/jobs/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
+    await checkAndUpdateJobStatus(id);
+
     if (useLocalDb) {
       const jobs = readJobs();
-      const job = jobs.find((j) => j._id === id);
+      const job = jobs.find((j) => j._id === id || j.id === id);
       if (!job) return res.status(404).json({ message: "Job not found" });
       return res.json({ ...job, id: job._id });
     }

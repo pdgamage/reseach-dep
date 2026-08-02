@@ -104,13 +104,10 @@ const pageStyles = `
 `;
 
 /* ─── Helpers ─────────────────────────────────────────────────────────── */
-function daysLeft(closingDate: string): number {
-  const diff = new Date(closingDate).getTime() - Date.now();
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-}
-
 function closingLabel(closingDate: string) {
-  const d = daysLeft(closingDate);
+  const diff = new Date(closingDate).getTime() - Date.now();
+  if (diff < 0) return { text: 'Closed', urgent: true };
+  const d = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   if (d === 0) return { text: 'Closes today', urgent: true };
   if (d <= 3) return { text: `${d}d left`, urgent: true };
   return { text: `${d} days left`, urgent: false };
