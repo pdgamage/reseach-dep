@@ -1,4 +1,3 @@
-import React from 'react';
 import { ClockIcon } from 'lucide-react';
 interface CountdownBadgeProps {
   closingDate: string;

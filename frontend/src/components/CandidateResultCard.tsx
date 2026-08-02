@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ShortlistResult } from '../data/mockData';
 import { SkillTag } from './SkillTag';
 import {
@@ -84,7 +84,8 @@ export function CandidateResultCard({ result, onEmailSent }: CandidateResultCard
       }
 
       const updated = await res.json();
-      toast.success(`Email sent to ${result.applicantName} successfully!`);
+      const recipientStr = updated.recipientEmail ? `${result.applicantName} (${updated.recipientEmail})` : result.applicantName;
+      toast.success(`Email sent to ${recipientStr} successfully!`);
       if (onEmailSent) {
         onEmailSent(updated);
       }

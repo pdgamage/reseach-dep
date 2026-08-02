@@ -132,6 +132,8 @@ export function ShortlistResults() {
               ? false
               : (cv.isRecommended ?? (cv.matchScore >= 70)),
           emailSent: cv.emailSent || false,
+          email: cv.email || '',
+          phone: cv.phone || '',
         };
       }
       return null;
