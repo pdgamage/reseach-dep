@@ -35,7 +35,6 @@ export function JobCard({ job, isApplicantView = false, onDelete }: JobCardProps
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {!isApplicantView && <StatusBadge status={job.status} />}
           {!isApplicantView && onDelete && (
             <button
               onClick={handleDelete}

@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Job, mockResults } from '../data/mockData';
-import { StatusBadge } from '../components/StatusBadge';
 import { SkillTag } from '../components/SkillTag';
 import { CountdownBadge } from '../components/CountdownBadge';
 import toast from 'react-hot-toast';
-import { ArrowLeft  } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import {
   FileText,
   Download,
@@ -15,7 +14,7 @@ import {
   Briefcase,
   ExternalLink,
   CheckCircle,
-  Award,
+  Clock,
 } from 'lucide-react';
 
 const pageStyles = `
@@ -28,25 +27,17 @@ const pageStyles = `
     to   { opacity: 1; transform: translateY(0); }
   }
   @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.92); }
+  }
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to   { opacity: 1; transform: scale(1); }
+  }
 
   .jd-fade { animation: fadeIn 0.3s ease forwards; }
 
-  .jd-back-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 13px;
-    font-weight: 600;
-    color: #64748b;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-family: inherit;
-    padding: 6px 0;
-    margin-bottom: 20px;
-    transition: color 0.15s;
-  }
-  .jd-back-btn:hover { color: #4f46e5; }
   .sr-back-btn {
     display: inline-flex;
     align-items: center;
@@ -86,6 +77,9 @@ export function JobDetails() {
   const [loading, setLoading] = useState(true);
   const [jobCVs, setJobCVs] = useState<any[]>([]);
 
+  // Processing blur timer state (1.5 minutes = 90 seconds = 90,000 ms)
+  const [secondsRemaining, setSecondsRemaining] = useState<number | null>(null);
+
   useEffect(() => {
     const fetchJobAndApplications = async () => {
       try {
@@ -114,6 +108,29 @@ export function JobDetails() {
     };
     fetchJobAndApplications();
   }, [id, navigate]);
+
+  // Handle 1.5 minutes (90 seconds) processing blur timer when deadline passes
+  useEffect(() => {
+    if (!job?.closingDate) return;
+
+    const updateProcessingTimer = () => {
+      const closingTime = new Date(job.closingDate).getTime();
+      const now = Date.now();
+      const elapsed = now - closingTime;
+      const TOTAL_PROCESSING_TIME_MS = 90000; // 1.5 minutes
+
+      if (elapsed >= 0 && elapsed < TOTAL_PROCESSING_TIME_MS) {
+        const remainingSec = Math.ceil((TOTAL_PROCESSING_TIME_MS - elapsed) / 1000);
+        setSecondsRemaining(remainingSec);
+      } else {
+        setSecondsRemaining(null);
+      }
+    };
+
+    updateProcessingTimer();
+    const interval = setInterval(updateProcessingTimer, 1000);
+    return () => clearInterval(interval);
+  }, [job?.closingDate]);
 
   if (loading || !job) {
     return (
@@ -190,6 +207,7 @@ export function JobDetails() {
 
   const isClosed = job.status === 'Closed' || new Date(job.closingDate) < new Date();
   const hasResults = isClosed && jobApplications.length > 0;
+  const isProcessingBlur = secondsRemaining !== null && secondsRemaining > 0;
 
   const getScoreColor = (score: number) => {
     if (score >= 85) return 'text-emerald-700 bg-emerald-50';
@@ -208,14 +226,20 @@ export function JobDetails() {
   return (
     <>
       <style>{pageStyles}</style>
-      <div className="jd-root" style={{ background: '#f9fbfb', minHeight: '100vh', padding: '36px 24px 64px' }}>
-        <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+      <div className="jd-root" style={{ background: '#f9fbfb', minHeight: '100vh', padding: '36px 24px 64px', position: 'relative' }}>
+        <div
+          style={{
+            maxWidth: '1100px',
+            margin: '0 auto',
+            filter: isProcessingBlur ? 'blur(8px)' : 'none',
+            pointerEvents: isProcessingBlur ? 'none' : 'auto',
+            transition: 'filter 0.5s ease',
+          }}
+        >
           <button className="sr-back-btn" onClick={() => navigate(`/dashboard`)}>
             <ArrowLeft style={{ width: '16px', height: '16px' }} />
             Back to Dashboard
           </button>
-
-          
 
           {/* Main Job Details Card */}
           <div className="jd-fade" style={{ background: '#fff', border: '1px solid #e8eaed', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 2px 10px rgba(0,0,0,0.03)', marginBottom: '28px' }}>
@@ -227,12 +251,11 @@ export function JobDetails() {
                     {job.title}
                   </h1>
                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '10px' }}>
-                    <StatusBadge status={job.status} />
                     <CountdownBadge closingDate={job.closingDate} />
                   </div>
                 </div>
 
-                {hasResults && (
+                {hasResults && !isProcessingBlur && (
                   <Link
                     to={`/results/${job.id}`}
                     style={{
@@ -249,8 +272,7 @@ export function JobDetails() {
                       boxShadow: '0 4px 14px rgba(79,70,229,0.25)',
                     }}
                   >
-
-                    View Full  Results
+                    View Full Results
                     <ExternalLink style={{ width: '13px', height: '13px' }} />
                   </Link>
                 )}
@@ -302,7 +324,7 @@ export function JobDetails() {
           </div>
 
           {/* AI Banner */}
-          {hasResults && jobResults.length > 0 && (
+          {hasResults && jobResults.length > 0 && !isProcessingBlur && (
             <div className="jd-fade" style={{ background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '14px', padding: '20px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px', marginBottom: '28px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{ width: '40px', height: '40px', background: '#4f46e5', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0 }}>
@@ -350,54 +372,57 @@ export function JobDetails() {
                       <th style={{ padding: '14px 20px', textAlign: 'right' }}>Action</th>
                     </tr>
                   </thead>
-                  <tbody style={{ color: '#334155' }}>
-                    {jobApplications.map((cv) => {
-                      const cvId = cv.id || cv._id;
+                  <tbody>
+                    {jobApplications.map((cv, index) => {
+                      const scoreColor = getScoreColor(cv.matchScore || 0);
+                      const barColor = getProgressBarColor(cv.matchScore || 0);
                       return (
-                        <tr key={cvId} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <tr
+                          key={cv.id || cv._id || index}
+                          style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }}
+                          onMouseEnter={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = '#f8fafc'; }}
+                          onMouseLeave={(e) => { (e.currentTarget as HTMLTableRowElement).style.background = 'none'; }}
+                        >
                           {hasResults && (
-                            <td style={{ padding: '14px 20px' }}>
-                              {cv.matchScore !== undefined ? (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span style={{ width: '26px', height: '26px', borderRadius: '50%', background: '#f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#334155' }}>
-                                    {cv.rank}
-                                  </span>
-                                  {cv.isRecommended && <Award style={{ width: '16px', height: '16px', color: '#4f46e5' }} />}
-                                </div>
-                              ) : (
-                                <span style={{ color: '#94a3b8' }}>-</span>
-                              )}
+                            <td style={{ padding: '14px 20px', fontWeight: 700, color: '#334155' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ width: '24px', height: '24px', borderRadius: '50%', background: index === 0 ? '#fef3c7' : '#f1f5f9', color: index === 0 ? '#d97706' : '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px' }}>
+                                  {cv.rank || index + 1}
+                                </span>
+                              </div>
                             </td>
                           )}
+
                           <td style={{ padding: '14px 20px', fontWeight: 600, color: '#0f172a' }}>
                             {cv.applicantName}
                           </td>
+
                           <td style={{ padding: '14px 20px', color: '#64748b' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <FileText style={{ width: '15px', height: '15px', color: '#94a3b8' }} />
-                              {cv.fileName}
+                              <FileText style={{ width: '14px', height: '14px', color: '#94a3b8' }} />
+                              <span>{cv.fileName}</span>
                             </div>
                           </td>
+
                           <td style={{ padding: '14px 20px', color: '#64748b' }}>
-                            {new Date(cv.createdAt || cv.uploadDate).toLocaleDateString()}
+                            {new Date(cv.createdAt).toLocaleDateString()}
                           </td>
-                          {hasResults && cv.matchScore !== undefined ? (
+
+                          {hasResults ? (
                             <>
                               <td style={{ padding: '14px 20px' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '140px' }}>
-                                  <div style={{ flex: 1, background: '#f1f5f9', borderRadius: '10px', height: '6px', overflow: 'hidden' }}>
-                                    <div
-                                      className={getProgressBarColor(cv.matchScore)}
-                                      style={{ height: '100%', borderRadius: '10px', width: `${cv.matchScore}%` }}
-                                    />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: '120px' }}>
+                                  <div style={{ flex: 1, height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
+                                    <div className={barColor} style={{ width: `${cv.matchScore || 0}%`, height: '100%', borderRadius: '3px' }} />
                                   </div>
-                                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${getScoreColor(cv.matchScore)}`}>
-                                    {cv.matchScore}%
+                                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#334155', minWidth: '32px' }}>
+                                    {cv.matchScore || 0}%
                                   </span>
                                 </div>
                               </td>
+
                               <td style={{ padding: '14px 20px' }}>
-                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${cv.isRecommended ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-100 text-slate-600'}`}>
+                                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${scoreColor}`}>
                                   {cv.isRecommended && <CheckCircle style={{ width: '12px', height: '12px' }} />}
                                   {cv.isRecommended ? 'Shortlisted' : 'Not Shortlisted'}
                                 </span>
@@ -437,6 +462,107 @@ export function JobDetails() {
 
         </div>
       </div>
+
+      {/* Processing Blur Overlay (1.5 Minutes = 90 Seconds) */}
+      {isProcessingBlur && secondsRemaining !== null && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 99999,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '24px',
+              maxWidth: '460px',
+              width: '100%',
+              padding: '36px 32px',
+              textAlign: 'center',
+              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(226, 232, 240, 0.8)',
+              animation: 'popIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+              fontFamily: "'Poppins', sans-serif",
+            }}
+          >
+            {/* Animated Processing Spinner Circle */}
+            <div style={{ position: 'relative', width: '88px', height: '88px', margin: '0 auto 24px' }}>
+              <div
+                style={{
+                  width: '88px',
+                  height: '88px',
+                  borderRadius: '50%',
+                  border: '4px solid #e0e7ff',
+                  borderTop: '4px solid #4f46e5',
+                  borderRight: '4px solid #818cf8',
+                  animation: 'spin 0.9s linear infinite',
+                }}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#4f46e5',
+                }}
+              >
+                <Sparkles style={{ width: '34px', height: '34px', animation: 'pulse 1.6s ease-in-out infinite' }} />
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: '20px', fontWeight: 800, color: '#0f172a', margin: '0 0 8px', letterSpacing: '-0.01em' }}>
+              AI Evaluating Applications...
+            </h3>
+
+            <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 22px', lineHeight: '1.6' }}>
+              Submissions closed for <strong style={{ color: '#0f172a' }}>"{job.title}"</strong>. SmartHire AI is processing candidate CVs, analyzing qualifications, and calculating final shortlist scores.
+            </p>
+
+            {/* Animated Progress Bar */}
+            <div style={{ background: '#f1f5f9', borderRadius: '10px', height: '8px', overflow: 'hidden', marginBottom: '18px' }}>
+              <div
+                style={{
+                  width: `${Math.min(100, Math.round(((90 - secondsRemaining) / 90) * 100))}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #4f46e5, #818cf8)',
+                  borderRadius: '10px',
+                  transition: 'width 1s linear',
+                }}
+              />
+            </div>
+
+            {/* Timer Badge */}
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                background: '#eef2ff',
+                border: '1px solid #c7d2fe',
+                color: '#4338ca',
+                padding: '7px 18px',
+                borderRadius: '20px',
+                fontSize: '13px',
+                fontWeight: 700,
+              }}
+            >
+              <Clock style={{ width: '15px', height: '15px' }} />
+              <span>
+                Processing: {Math.floor(secondsRemaining / 60)}:{(secondsRemaining % 60).toString().padStart(2, '0')} remaining
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
