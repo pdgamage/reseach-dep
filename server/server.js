@@ -17,7 +17,10 @@ import https from "https";
 import { spawn } from "child_process";
 import { OAuth2Client } from "google-auth-library";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, ".env") });
 
 const app = express();
 app.use(cors());
@@ -29,8 +32,6 @@ const JWT_SECRET = process.env.JWT_SECRET || "smarthire_jwt_secret_token_key_123
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const DB_FILE = path.join(__dirname, "users.json");
 const JOBS_FILE = path.join(__dirname, "jobs.json");
 const APPLICATIONS_FILE = path.join(__dirname, "applications.json");
@@ -1557,9 +1558,9 @@ app.post("/api/applications/:id/analyze", authMiddleware, async (req, res) => {
 
 async function sendEmailViaEmailJS({ to_name, to_email, job_title, match_score, explanation, interview_date, interview_time, interview_location, interview_notes }) {
   const serviceId = process.env.EMAILJS_SERVICE_ID || "service_iein0zd";
-  const templateId = process.env.EMAILJS_TEMPLATE_ID || "template_la8776r";
-  const publicKey = process.env.EMAILJS_PUBLIC_KEY || "UdPCaVgF50BTauCMv";
-  const privateKey = process.env.EMAILJS_PRIVATE_KEY || "oBe1SHlAtGoxWLPfIAtlF";
+  const templateId = process.env.EMAILJS_TEMPLATE_ID || "template_97iudie";
+  const publicKey = process.env.EMAILJS_PUBLIC_KEY || "ydzmOOOPAA1Jt28-I";
+  const privateKey = process.env.EMAILJS_PRIVATE_KEY || "aLth2rUYRoIM1es1FqIMB";
 
   if (!to_email) {
     console.warn("[EmailJS] Cannot send email: recipient address is empty.");

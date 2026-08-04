@@ -44,6 +44,10 @@ jobs:
           CLOUDINARY_API_KEY=${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET=${{ secrets.CLOUDINARY_API_SECRET }}
           GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+          EMAILJS_SERVICE_ID=${{ secrets.EMAILJS_SERVICE_ID || 'service_iein0zd' }}
+          EMAILJS_TEMPLATE_ID=${{ secrets.EMAILJS_TEMPLATE_ID || 'template_97iudie' }}
+          EMAILJS_PUBLIC_KEY=${{ secrets.EMAILJS_PUBLIC_KEY || 'ydzmOOOPAA1Jt28-I' }}
+          EMAILJS_PRIVATE_KEY=${{ secrets.EMAILJS_PRIVATE_KEY || 'aLth2rUYRoIM1es1FqIMB' }}
           EOF
 
       # Step 3: Setup SSH key
