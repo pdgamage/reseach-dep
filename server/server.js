@@ -106,106 +106,7 @@ const upload = multer({
   }
 });
 
-// Mock applications to seed
-const initialApplications = [
-  {
-    _id: "cv1",
-    jobId: "j3",
-    applicantId: "a1",
-    applicantName: "Kasun Perera",
-    fileName: "Kasun_Perera_CV.pdf",
-    cvUrl: "/api/uploads/mock_cv1.pdf",
-    status: "Shortlisted",
-    matchScore: 85,
-    skills: ["React", "TypeScript", "Node.js", "Tailwind CSS", "JavaScript", "HTML"],
-    roles: ["Software Engineer", "Frontend Developer", "Web Developer"],
-    rawText: "Kasun Perera Software Engineer Frontend Developer proficient in React, TypeScript, Node.js, JavaScript, and CSS.",
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    statusHistory: [
-      {
-        status: "Shortlisted",
-        updatedBy: "AI Pipeline",
-        updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        comment: "Application analyzed successfully. Match score: 85%."
-      }
-    ]
-  },
-  {
-    _id: "cv2",
-    jobId: "j3",
-    applicantId: "a2",
-    applicantName: "Amandi Silva",
-    fileName: "Amandi_Resume_2023.pdf",
-    cvUrl: "/api/uploads/mock_cv2.pdf",
-    status: "Shortlisted",
-    matchScore: 78,
-    skills: ["Figma", "UI/UX", "Adobe XD", "Wireframing", "Prototyping", "User Research"],
-    roles: ["UI/UX Designer", "Product Designer", "UX Architect"],
-    rawText: "Amandi Silva UI/UX Designer Product Designer experienced in Figma, Adobe XD, Wireframing, and User Centered Design.",
-    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    statusHistory: [
-      {
-        status: "Shortlisted",
-        updatedBy: "AI Pipeline",
-        updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-        comment: "Application analyzed successfully. Match score: 78%."
-      }
-    ]
-  },
-  {
-    _id: "cv3",
-    jobId: "j3",
-    applicantId: "a3",
-    applicantName: "Nuwan Fernando",
-    fileName: "NuwanF_CV.pdf",
-    cvUrl: "/api/uploads/mock_cv3.pdf",
-    status: "Pending",
-    matchScore: 62,
-    skills: ["Python", "SQL", "Data Analysis", "Pandas", "PostgreSQL"],
-    roles: ["Data Analyst", "Data Engineer", "Backend Developer"],
-    rawText: "Nuwan Fernando Data Analyst Data Engineer skilled in Python, SQL, PostgreSQL, Data Analysis, and Pandas.",
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    statusHistory: [
-      {
-        status: "Pending",
-        updatedBy: "System",
-        updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        comment: "Application submitted (mock seed)."
-      }
-    ]
-  }
-];
 
-// Seed default applications (MongoDB)
-async function seedApplications() {
-  try {
-    const appCount = await Application.countDocuments();
-    if (appCount === 0) {
-      console.log("No applications found in MongoDB. Seeding initial applications...");
-      await Application.insertMany(initialApplications);
-      console.log("Initial applications seeded successfully!");
-    }
-  } catch (error) {
-    console.error("Error seeding applications:", error);
-  }
-}
-
-// Seed default applications (Local JSON)
-function seedApplicationsLocal() {
-  try {
-    const apps = readApplications();
-    if (apps.length === 0) {
-      console.log("No applications found in local DB. Seeding initial applications...");
-      writeApplications(initialApplications);
-      console.log("Initial applications seeded successfully in local DB!");
-    }
-  } catch (error) {
-    console.error("Error seeding applications locally:", error);
-  }
-}
 
 let useLocalDb = false;
 
@@ -243,161 +144,15 @@ function writeJobs(jobs) {
 // MongoDB Connection with timeout
 mongoose
   .connect(MONGODB_URI, { serverSelectionTimeoutMS: 15000 })
-  .then(async () => {
+  .then(() => {
     console.log("Connected to MongoDB successfully");
-    await seedHR();
-    await seedJobs();
-    await seedApplications();
   })
-  .catch(async (err) => {
+  .catch((err) => {
     console.warn("\n⚠️ MongoDB connection failed. Falling back to local file database (users.json)!");
     useLocalDb = true;
-    await seedHRLocal();
-    seedJobsLocal();
-    seedApplicationsLocal();
   });
 
-// Seed default HR account (MongoDB)
-async function seedHR() {
-  try {
-    const hrExists = await User.findOne({ role: "hr" });
-    if (!hrExists) {
-      console.log("No HR account found. Seeding default HR account...");
-      const hashedPassword = await bcrypt.hash("hrpassword123", 10);
-      const defaultHR = new User({
-        name: "HR Manager",
-        email: "hr@smarthire.com",
-        password: hashedPassword,
-        role: "hr",
-      });
-      await defaultHR.save();
-      console.log("Default HR account seeded successfully!");
-      console.log("Email: hr@smarthire.com | Password: hrpassword123");
-    } else {
-      console.log("HR accounts already exist. Seeding skipped.");
-    }
-  } catch (error) {
-    console.error("Error seeding HR account:", error);
-  }
-}
 
-// Seed default HR account (Local JSON)
-async function seedHRLocal() {
-  try {
-    const users = readUsers();
-    const hrExists = users.some((u) => u.role === "hr");
-    if (!hrExists) {
-      console.log("No HR account found. Seeding default HR account in local DB...");
-      const hashedPassword = await bcrypt.hash("hrpassword123", 10);
-      const defaultHR = {
-        _id: new mongoose.Types.ObjectId().toString(),
-        name: "HR Manager",
-        email: "hr@smarthire.com",
-        password: hashedPassword,
-        role: "hr",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      users.push(defaultHR);
-      writeUsers(users);
-      console.log("Default HR account seeded successfully in local DB!");
-      console.log("Email: hr@smarthire.com | Password: hrpassword123");
-    } else {
-      console.log("HR accounts already exist in local DB. Seeding skipped.");
-    }
-  } catch (error) {
-    console.error("Error seeding HR account locally:", error);
-  }
-}
-
-// Initial Mock Jobs Data for Seeding
-const initialJobs = [
-  {
-    _id: "j1",
-    title: "Software Engineer",
-    description: "We are looking for a skilled Software Engineer to join our core development team. You will be responsible for building scalable web applications and collaborating with cross-functional teams.",
-    skills: ["React", "Node.js", "TypeScript", "SQL"],
-    minEducation: "Bachelor's Degree",
-    minExperience: 2,
-    closingDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "Open",
-    cvCount: 12
-  },
-  {
-    _id: "j2",
-    title: "Marketing Executive",
-    description: "Join our dynamic marketing team to drive brand awareness and execute digital campaigns across various platforms.",
-    skills: ["Digital Marketing", "SEO", "Content Creation", "Communication"],
-    minEducation: "Diploma",
-    minExperience: 1,
-    closingDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "Open",
-    cvCount: 8
-  },
-  {
-    _id: "j3",
-    title: "Accounts Officer",
-    description: "Seeking a detail-oriented Accounts Officer to manage daily financial transactions, payroll, and reporting.",
-    skills: ["Excel", "Accounting", "QuickBooks", "Attention to Detail"],
-    minEducation: "Bachelor's Degree",
-    minExperience: 3,
-    closingDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "Processing",
-    cvCount: 24
-  },
-  {
-    _id: "j4",
-    title: "Data Analyst",
-    description: "Looking for a Data Analyst to interpret data and turn it into information which can offer ways to improve a business.",
-    skills: ["Python", "SQL", "Tableau", "Statistics"],
-    minEducation: "Bachelor's Degree",
-    minExperience: 2,
-    closingDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "Closed",
-    cvCount: 45
-  },
-  {
-    _id: "j5",
-    title: "HR Coordinator",
-    description: "We need an HR Coordinator to facilitate daily HR functions like keeping track of employees records and supporting the interview process.",
-    skills: ["Communication", "Teamwork", "MS Office", "Organization"],
-    minEducation: "Diploma",
-    minExperience: 1,
-    closingDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "Open",
-    cvCount: 3
-  }
-];
-
-async function seedJobs() {
-  try {
-    const jobCount = await Job.countDocuments();
-    if (jobCount === 0) {
-      console.log("No jobs found in MongoDB. Seeding initial jobs...");
-      await Job.insertMany(initialJobs);
-      console.log("Initial jobs seeded successfully!");
-    } else {
-      console.log("Jobs already exist in MongoDB. Seeding skipped.");
-    }
-  } catch (error) {
-    console.error("Error seeding jobs:", error);
-  }
-}
-
-function seedJobsLocal() {
-  try {
-    const jobs = readJobs();
-    if (jobs.length === 0) {
-      console.log("No jobs found in local DB. Seeding initial jobs...");
-      writeJobs(initialJobs);
-      console.log("Initial jobs seeded successfully in local DB!");
-    } else {
-      console.log("Jobs already exist in local DB. Seeding skipped.");
-    }
-  } catch (error) {
-    console.error("Error seeding jobs locally:", error);
-  }
-}
 
 // Auth Middleware
 const authMiddleware = async (req, res, next) => {
@@ -965,12 +720,71 @@ app.delete("/api/jobs/:id", authMiddleware, async (req, res) => {
 // Serve local uploads statically
 app.use("/api/uploads", express.static(uploadDir));
 
+// Check if applicant has already applied for a specific job
+app.get("/api/jobs/:id/my-application", authMiddleware, async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const userId = req.user._id || req.user.id;
+    if (useLocalDb) {
+      const applications = readApplications();
+      const existing = applications.find(
+        (a) => String(a.jobId) === String(jobId) && String(a.applicantId) === String(userId)
+      );
+      return res.json({ hasApplied: !!existing, application: existing ? { ...existing, id: existing._id } : null });
+    }
+    const existing = await Application.findOne({ jobId, applicantId: userId });
+    res.json({ hasApplied: !!existing, application: existing ? { ...existing.toObject(), id: existing._id } : null });
+  } catch (error) {
+    console.error("Check my application error:", error);
+    res.status(500).json({ message: "Server error checking application status" });
+  }
+});
+
+// Fetch all applications submitted by the logged-in applicant
+app.get("/api/applications/my-applications", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    if (useLocalDb) {
+      const applications = readApplications();
+      const userApps = applications.filter((a) => String(a.applicantId) === String(userId));
+      const mapped = userApps.map((a) => ({ ...a, id: a._id }));
+      return res.json(mapped);
+    }
+    const userApps = await Application.find({ applicantId: userId });
+    const mapped = userApps.map((a) => {
+      const obj = a.toObject();
+      obj.id = obj._id;
+      return obj;
+    });
+    res.json(mapped);
+  } catch (error) {
+    console.error("Fetch my applications error:", error);
+    res.status(500).json({ message: "Server error fetching applications" });
+  }
+});
+
 // Apply to a job (File Upload to Cloudinary or Local Fallback)
 app.post("/api/jobs/:id/apply", authMiddleware, upload.single("cv"), async (req, res) => {
   try {
     const jobId = req.params.id;
     const userId = req.user._id || req.user.id;
     const userName = req.user.name;
+
+    // Guard: Prevent duplicate applications for the same job post
+    if (useLocalDb) {
+      const applications = readApplications();
+      const existing = applications.find(
+        (a) => String(a.jobId) === String(jobId) && String(a.applicantId) === String(userId)
+      );
+      if (existing) {
+        return res.status(400).json({ message: "You have already applied for this job." });
+      }
+    } else {
+      const existing = await Application.findOne({ jobId, applicantId: userId });
+      if (existing) {
+        return res.status(400).json({ message: "You have already applied for this job." });
+      }
+    }
 
     if (!req.file) {
       return res.status(400).json({ message: "No CV file uploaded" });

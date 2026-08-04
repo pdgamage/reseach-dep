@@ -8,10 +8,11 @@ import { UsersIcon, ChevronRightIcon, Trash2 } from 'lucide-react';
 interface JobCardProps {
   job: Job;
   isApplicantView?: boolean;
+  hasApplied?: boolean;
   onDelete?: (job: Job) => void;
 }
 
-export function JobCard({ job, isApplicantView = false, onDelete }: JobCardProps) {
+export function JobCard({ job, isApplicantView = false, hasApplied = false, onDelete }: JobCardProps) {
   const jobId = (job.id || (job as any)._id) as string;
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -97,13 +98,19 @@ export function JobCard({ job, isApplicantView = false, onDelete }: JobCardProps
       <div className="mt-auto pt-4 border-t border-slate-100 flex items-center justify-between">
         <CountdownBadge closingDate={job.closingDate} />
 
-        <Link
-          to={isApplicantView ? `/jobs/${jobId}/apply` : `/jobs/${jobId}`}
-          className="flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
-        >
-          {isApplicantView ? 'Apply Now' : 'View Details'}
-          <ChevronRightIcon className="w-4 h-4" />
-        </Link>
+        {isApplicantView && hasApplied ? (
+          <span className="flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg">
+            Applied
+          </span>
+        ) : (
+          <Link
+            to={isApplicantView ? `/jobs/${jobId}/apply` : `/jobs/${jobId}`}
+            className="flex items-center gap-1 text-sm font-medium text-indigo-600 hover:text-indigo-700 transition-colors"
+          >
+            {isApplicantView ? 'Apply Now' : 'View Details'}
+            <ChevronRightIcon className="w-4 h-4" />
+          </Link>
+        )}
       </div>
     </div>
   );
