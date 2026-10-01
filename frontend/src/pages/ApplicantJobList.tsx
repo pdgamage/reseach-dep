@@ -10,6 +10,7 @@ import {
   RotateCcw,
   ArrowRight,
   Calendar,
+  CheckCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -104,20 +105,17 @@ const pageStyles = `
 `;
 
 /* ─── Helpers ─────────────────────────────────────────────────────────── */
-function daysLeft(closingDate: string): number {
-  const diff = new Date(closingDate).getTime() - Date.now();
-  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-}
-
 function closingLabel(closingDate: string) {
-  const d = daysLeft(closingDate);
+  const diff = new Date(closingDate).getTime() - Date.now();
+  if (diff < 0) return { text: 'Closed', urgent: true };
+  const d = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
   if (d === 0) return { text: 'Closes today', urgent: true };
   if (d <= 3) return { text: `${d}d left`, urgent: true };
   return { text: `${d} days left`, urgent: false };
 }
 
 /* ─── Inline Job Row (Rooster-style horizontal card) ─────────────────── */
-function JobRow({ job, index }: { job: Job; index: number }) {
+function JobRow({ job, index, hasApplied }: { job: Job; index: number; hasApplied?: boolean }) {
   const cl = closingLabel(job.closingDate);
 
   return (
@@ -195,12 +193,19 @@ function JobRow({ job, index }: { job: Job; index: number }) {
             )}
           </div>
 
-          <Link to={`/jobs/${job.id}/apply`} className="rj-apply-btn">
-            Apply Now
-            <ArrowRight style={{ width: '14px', height: '14px' }}
-            strokeWidth={3.5}
- />
-          </Link>
+          {hasApplied ? (
+            <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold">
+              <CheckCircle style={{ width: '14px', height: '14px', color: '#059669' }} />
+              Applied
+            </span>
+          ) : (
+            <Link to={`/jobs/${job.id}/apply`} className="rj-apply-btn">
+              Apply Now
+              <ArrowRight style={{ width: '14px', height: '14px' }}
+              strokeWidth={3.5}
+   />
+            </Link>
+          )}
         </div>
       </div>
     </div>
@@ -210,6 +215,7 @@ function JobRow({ job, index }: { job: Job; index: number }) {
 /* ─── Main Component ─────────────────────────────────────────────────── */
 export function ApplicantJobList() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [appliedJobIds, setAppliedJobIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedExperience, setSelectedExperience] = useState('all');
@@ -217,15 +223,23 @@ export function ApplicantJobList() {
   const [sortBy, setSortBy] = useState('default');
 
   useEffect(() => {
-    const fetchJobs = async () => {
+    const fetchData = async () => {
       try {
         const token = localStorage.getItem('smarthire_token');
-        const res = await fetch('/api/jobs', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error('Failed to fetch jobs');
-        const data = await res.json();
+        const headers = { Authorization: `Bearer ${token}` };
+        const [jobsRes, appsRes] = await Promise.all([
+          fetch('/api/jobs', { headers }),
+          fetch('/api/applications/my-applications', { headers })
+        ]);
+        if (!jobsRes.ok) throw new Error('Failed to fetch jobs');
+        const data = await jobsRes.json();
         setJobs(data);
+
+        if (appsRes.ok) {
+          const apps = await appsRes.json();
+          const ids = new Set<string>(apps.map((a: any) => String(a.jobId)));
+          setAppliedJobIds(ids);
+        }
       } catch (err: any) {
         console.error(err);
         toast.error('Failed to load jobs');
@@ -233,7 +247,7 @@ export function ApplicantJobList() {
         setLoading(false);
       }
     };
-    fetchJobs();
+    fetchData();
   }, []);
 
   const openJobs = useMemo(() => jobs.filter((j) => j.status === 'Open'), [jobs]);
@@ -561,7 +575,7 @@ export function ApplicantJobList() {
           {filteredJobs.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {filteredJobs.map((job, idx) => (
-                <JobRow key={job.id} job={job} index={idx} />
+                <JobRow key={job.id} job={job} index={idx} hasApplied={appliedJobIds.has(String(job.id))} />
               ))}
             </div>
           ) : (

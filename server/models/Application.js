@@ -77,6 +77,14 @@ const applicationSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    email: {
+      type: String,
+      default: ""
+    },
+    phone: {
+      type: String,
+      default: ""
+    },
     emailSent: {
       type: Boolean,
       default: false

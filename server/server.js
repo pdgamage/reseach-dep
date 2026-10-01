@@ -15,8 +15,12 @@ import multer from "multer";
 import { v2 as cloudinary } from "cloudinary";
 import https from "https";
 import { spawn } from "child_process";
+import { OAuth2Client } from "google-auth-library";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+dotenv.config({ path: path.join(__dirname, ".env") });
 
 const app = express();
 app.use(cors());
@@ -25,9 +29,9 @@ app.use(express.json());
 const PORT = process.env.PORT || 5050;
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb+srv://pasindu1028:Pasindu1!@cluster0.awofywi.mongodb.net/cv";
 const JWT_SECRET = process.env.JWT_SECRET || "smarthire_jwt_secret_token_key_123";
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 const DB_FILE = path.join(__dirname, "users.json");
 const JOBS_FILE = path.join(__dirname, "jobs.json");
 const APPLICATIONS_FILE = path.join(__dirname, "applications.json");
@@ -103,94 +107,7 @@ const upload = multer({
   }
 });
 
-// Mock applications to seed
-const initialApplications = [
-  {
-    _id: "cv1",
-    jobId: "j3",
-    applicantId: "a1",
-    applicantName: "Kasun Perera",
-    fileName: "Kasun_Perera_CV.pdf",
-    cvUrl: "/api/uploads/mock_cv1.pdf",
-    status: "Pending",
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-    statusHistory: [
-      {
-        status: "Pending",
-        updatedBy: "System",
-        updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        comment: "Application submitted (mock seed)."
-      }
-    ]
-  },
-  {
-    _id: "cv2",
-    jobId: "j3",
-    applicantId: "a2",
-    applicantName: "Amandi Silva",
-    fileName: "Amandi_Resume_2023.pdf",
-    cvUrl: "/api/uploads/mock_cv2.pdf",
-    status: "Pending",
-    createdAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-    statusHistory: [
-      {
-        status: "Pending",
-        updatedBy: "System",
-        updatedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
-        comment: "Application submitted (mock seed)."
-      }
-    ]
-  },
-  {
-    _id: "cv3",
-    jobId: "j3",
-    applicantId: "a3",
-    applicantName: "Nuwan Fernando",
-    fileName: "NuwanF_CV.pdf",
-    cvUrl: "/api/uploads/mock_cv3.pdf",
-    status: "Pending",
-    createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-    statusHistory: [
-      {
-        status: "Pending",
-        updatedBy: "System",
-        updatedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        comment: "Application submitted (mock seed)."
-      }
-    ]
-  }
-];
 
-// Seed default applications (MongoDB)
-async function seedApplications() {
-  try {
-    const appCount = await Application.countDocuments();
-    if (appCount === 0) {
-      console.log("No applications found in MongoDB. Seeding initial applications...");
-      await Application.insertMany(initialApplications);
-      console.log("Initial applications seeded successfully!");
-    }
-  } catch (error) {
-    console.error("Error seeding applications:", error);
-  }
-}
-
-// Seed default applications (Local JSON)
-function seedApplicationsLocal() {
-  try {
-    const apps = readApplications();
-    if (apps.length === 0) {
-      console.log("No applications found in local DB. Seeding initial applications...");
-      writeApplications(initialApplications);
-      console.log("Initial applications seeded successfully in local DB!");
-    }
-  } catch (error) {
-    console.error("Error seeding applications locally:", error);
-  }
-}
 
 let useLocalDb = false;
 
@@ -227,162 +144,16 @@ function writeJobs(jobs) {
 
 // MongoDB Connection with timeout
 mongoose
-  .connect(MONGODB_URI, { serverSelectionTimeoutMS: 2000 })
-  .then(async () => {
+  .connect(MONGODB_URI, { serverSelectionTimeoutMS: 15000 })
+  .then(() => {
     console.log("Connected to MongoDB successfully");
-    await seedHR();
-    await seedJobs();
-    await seedApplications();
   })
-  .catch(async (err) => {
+  .catch((err) => {
     console.warn("\n⚠️ MongoDB connection failed. Falling back to local file database (users.json)!");
     useLocalDb = true;
-    await seedHRLocal();
-    seedJobsLocal();
-    seedApplicationsLocal();
   });
 
-// Seed default HR account (MongoDB)
-async function seedHR() {
-  try {
-    const hrExists = await User.findOne({ role: "hr" });
-    if (!hrExists) {
-      console.log("No HR account found. Seeding default HR account...");
-      const hashedPassword = await bcrypt.hash("hrpassword123", 10);
-      const defaultHR = new User({
-        name: "HR Manager",
-        email: "hr@smarthire.com",
-        password: hashedPassword,
-        role: "hr",
-      });
-      await defaultHR.save();
-      console.log("Default HR account seeded successfully!");
-      console.log("Email: hr@smarthire.com | Password: hrpassword123");
-    } else {
-      console.log("HR accounts already exist. Seeding skipped.");
-    }
-  } catch (error) {
-    console.error("Error seeding HR account:", error);
-  }
-}
 
-// Seed default HR account (Local JSON)
-async function seedHRLocal() {
-  try {
-    const users = readUsers();
-    const hrExists = users.some((u) => u.role === "hr");
-    if (!hrExists) {
-      console.log("No HR account found. Seeding default HR account in local DB...");
-      const hashedPassword = await bcrypt.hash("hrpassword123", 10);
-      const defaultHR = {
-        _id: new mongoose.Types.ObjectId().toString(),
-        name: "HR Manager",
-        email: "hr@smarthire.com",
-        password: hashedPassword,
-        role: "hr",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      users.push(defaultHR);
-      writeUsers(users);
-      console.log("Default HR account seeded successfully in local DB!");
-      console.log("Email: hr@smarthire.com | Password: hrpassword123");
-    } else {
-      console.log("HR accounts already exist in local DB. Seeding skipped.");
-    }
-  } catch (error) {
-    console.error("Error seeding HR account locally:", error);
-  }
-}
-
-// Initial Mock Jobs Data for Seeding
-const initialJobs = [
-  {
-    _id: "j1",
-    title: "Software Engineer",
-    description: "We are looking for a skilled Software Engineer to join our core development team. You will be responsible for building scalable web applications and collaborating with cross-functional teams.",
-    skills: ["React", "Node.js", "TypeScript", "SQL"],
-    minEducation: "Bachelor's Degree",
-    minExperience: 2,
-    closingDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "Open",
-    cvCount: 12
-  },
-  {
-    _id: "j2",
-    title: "Marketing Executive",
-    description: "Join our dynamic marketing team to drive brand awareness and execute digital campaigns across various platforms.",
-    skills: ["Digital Marketing", "SEO", "Content Creation", "Communication"],
-    minEducation: "Diploma",
-    minExperience: 1,
-    closingDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "Open",
-    cvCount: 8
-  },
-  {
-    _id: "j3",
-    title: "Accounts Officer",
-    description: "Seeking a detail-oriented Accounts Officer to manage daily financial transactions, payroll, and reporting.",
-    skills: ["Excel", "Accounting", "QuickBooks", "Attention to Detail"],
-    minEducation: "Bachelor's Degree",
-    minExperience: 3,
-    closingDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "Processing",
-    cvCount: 24
-  },
-  {
-    _id: "j4",
-    title: "Data Analyst",
-    description: "Looking for a Data Analyst to interpret data and turn it into information which can offer ways to improve a business.",
-    skills: ["Python", "SQL", "Tableau", "Statistics"],
-    minEducation: "Bachelor's Degree",
-    minExperience: 2,
-    closingDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "Closed",
-    cvCount: 45
-  },
-  {
-    _id: "j5",
-    title: "HR Coordinator",
-    description: "We need an HR Coordinator to facilitate daily HR functions like keeping track of employees records and supporting the interview process.",
-    skills: ["Communication", "Teamwork", "MS Office", "Organization"],
-    minEducation: "Diploma",
-    minExperience: 1,
-    closingDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "Open",
-    cvCount: 3
-  }
-];
-
-async function seedJobs() {
-  try {
-    const jobCount = await Job.countDocuments();
-    if (jobCount === 0) {
-      console.log("No jobs found in MongoDB. Seeding initial jobs...");
-      await Job.insertMany(initialJobs);
-      console.log("Initial jobs seeded successfully!");
-    } else {
-      console.log("Jobs already exist in MongoDB. Seeding skipped.");
-    }
-  } catch (error) {
-    console.error("Error seeding jobs:", error);
-  }
-}
-
-function seedJobsLocal() {
-  try {
-    const jobs = readJobs();
-    if (jobs.length === 0) {
-      console.log("No jobs found in local DB. Seeding initial jobs...");
-      writeJobs(initialJobs);
-      console.log("Initial jobs seeded successfully in local DB!");
-    } else {
-      console.log("Jobs already exist in local DB. Seeding skipped.");
-    }
-  } catch (error) {
-    console.error("Error seeding jobs locally:", error);
-  }
-}
 
 // Auth Middleware
 const authMiddleware = async (req, res, next) => {
@@ -489,7 +260,7 @@ app.post("/api/auth/login", async (req, res) => {
       user = await User.findOne({ email: emailLower });
     }
 
-    if (!user) {
+    if (!user || !user.password) {
       return res.status(400).json({ message: "Invalid email or password" });
     }
 
@@ -510,11 +281,139 @@ app.post("/api/auth/login", async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        avatar: user.avatar || "",
+        authProvider: user.authProvider || "local",
       },
     });
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Server error during login" });
+  }
+});
+
+app.post("/api/auth/google", async (req, res) => {
+  try {
+    const { token, credential } = req.body;
+    const idToken = token || credential;
+
+    if (!idToken) {
+      return res.status(400).json({ message: "Google token is required" });
+    }
+
+    let payload;
+    try {
+      if (GOOGLE_CLIENT_ID) {
+        const ticket = await googleClient.verifyIdToken({
+          idToken,
+          audience: GOOGLE_CLIENT_ID,
+        });
+        payload = ticket.getPayload();
+      } else {
+        const tokenRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+        if (!tokenRes.ok) {
+          throw new Error("Invalid token");
+        }
+        payload = await tokenRes.json();
+      }
+    } catch (verifyErr) {
+      try {
+        const tokenRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+        if (tokenRes.ok) {
+          payload = await tokenRes.json();
+        } else {
+          return res.status(400).json({ message: "Invalid Google token" });
+        }
+      } catch (err) {
+        return res.status(400).json({ message: "Invalid Google token" });
+      }
+    }
+
+    if (!payload || !payload.email) {
+      return res.status(400).json({ message: "Google authentication failed: Email missing" });
+    }
+
+    const emailLower = payload.email.toLowerCase().trim();
+    const name = payload.name || `${payload.given_name || ""} ${payload.family_name || ""}`.trim() || "Applicant User";
+    const googleId = payload.sub;
+    const avatar = payload.picture || "";
+
+    let user;
+
+    if (useLocalDb) {
+      const users = readUsers();
+      user = users.find((u) => u.email === emailLower);
+
+      if (user) {
+        if (user.role === "hr") {
+          return res.status(403).json({
+            message: "Google authentication is only available for Applicants. HR users must sign in with email and password.",
+          });
+        }
+        user.googleId = googleId;
+        user.avatar = avatar || user.avatar;
+        user.authProvider = "google";
+        user.updatedAt = new Date().toISOString();
+        writeUsers(users);
+      } else {
+        user = {
+          _id: new mongoose.Types.ObjectId().toString(),
+          name,
+          email: emailLower,
+          role: "applicant",
+          googleId,
+          avatar,
+          authProvider: "google",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        users.push(user);
+        writeUsers(users);
+      }
+    } else {
+      user = await User.findOne({ email: emailLower });
+
+      if (user) {
+        if (user.role === "hr") {
+          return res.status(403).json({
+            message: "Google authentication is only available for Applicants. HR users must sign in with email and password.",
+          });
+        }
+        user.googleId = googleId;
+        user.avatar = avatar || user.avatar;
+        user.authProvider = "google";
+        await user.save();
+      } else {
+        user = new User({
+          name,
+          email: emailLower,
+          role: "applicant",
+          googleId,
+          avatar,
+          authProvider: "google",
+        });
+        await user.save();
+      }
+    }
+
+    const userId = useLocalDb ? user._id : user._id.toString();
+    const jwtToken = jwt.sign({ id: userId, role: user.role }, JWT_SECRET, {
+      expiresIn: "7d",
+    });
+
+    res.json({
+      token: jwtToken,
+      user: {
+        id: userId,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatar: user.avatar,
+        authProvider: user.authProvider || "google",
+      },
+    });
+  } catch (error) {
+    console.error("Google auth error:", error);
+    res.status(500).json({ message: "Server error during Google authentication" });
   }
 });
 
@@ -527,6 +426,8 @@ app.get("/api/auth/me", authMiddleware, async (req, res) => {
         name: req.user.name,
         email: req.user.email,
         role: req.user.role,
+        avatar: req.user.avatar || "",
+        authProvider: req.user.authProvider || "local",
       },
     });
   } catch (error) {
@@ -535,16 +436,83 @@ app.get("/api/auth/me", authMiddleware, async (req, res) => {
   }
 });
 
+// Helper: Transition job status based on deadline date & time and application analysis completion
+async function checkAndUpdateJobStatus(jobId) {
+  try {
+    if (!jobId) return;
+    const now = new Date();
+
+    if (useLocalDb) {
+      const jobs = readJobs();
+      const jobIdx = jobs.findIndex(j => j._id === jobId || j.id === jobId);
+      if (jobIdx === -1) return;
+
+      const job = jobs[jobIdx];
+      const closingTime = new Date(job.closingDate).getTime();
+      const isPastClosing = !isNaN(closingTime) && closingTime <= now.getTime();
+      const applications = readApplications();
+      const pendingApps = applications.filter(app => (app.jobId === jobId || app.jobId === job.id || app.jobId === String(job._id)) && app.status === "Pending");
+
+      let newStatus = "Open";
+      if (isPastClosing) {
+        newStatus = pendingApps.length > 0 ? "Processing" : "Closed";
+      }
+
+      if (newStatus !== job.status) {
+        const oldStatus = job.status;
+        jobs[jobIdx].status = newStatus;
+        jobs[jobIdx].updatedAt = now.toISOString();
+        writeJobs(jobs);
+        console.log(`[Job Status Update] Job "${job.title}" (${jobId}) status updated: ${oldStatus} -> ${newStatus}`);
+      }
+      return;
+    }
+
+    // MongoDB path
+    const job = await Job.findById(jobId);
+    if (!job) return;
+
+    const closingTime = new Date(job.closingDate).getTime();
+    const isPastClosing = !isNaN(closingTime) && closingTime <= now.getTime();
+    const pendingCount = await Application.countDocuments({
+      jobId: { $in: [job._id.toString(), String(job._id), job.id].filter(Boolean) },
+      status: "Pending"
+    });
+
+    let newStatus = "Open";
+    if (isPastClosing) {
+      newStatus = pendingCount > 0 ? "Processing" : "Closed";
+    }
+
+    if (newStatus !== job.status) {
+      const oldStatus = job.status;
+      job.status = newStatus;
+      await job.save();
+      console.log(`[Job Status Update] Job "${job.title}" (${jobId}) status updated: ${oldStatus} -> ${newStatus}`);
+    }
+  } catch (err) {
+    console.error(`[Job Status Update] Error checking status for job ${jobId}:`, err.message);
+  }
+}
+
 // Job API Routes
 app.get("/api/jobs", authMiddleware, async (req, res) => {
   try {
     const now = new Date();
     if (useLocalDb) {
       const jobs = readJobs();
+      const applications = readApplications();
       let modified = false;
       const updatedJobs = jobs.map((j) => {
-        if (j.status === "Open" && new Date(j.closingDate) < now) {
-          j.status = "Processing";
+        const closingTime = new Date(j.closingDate).getTime();
+        const isPastClosing = !isNaN(closingTime) && closingTime <= now.getTime();
+        const pendingCount = applications.filter(a => (a.jobId === j._id || a.jobId === j.id || a.jobId === String(j._id)) && a.status === "Pending").length;
+        let targetStatus = "Open";
+        if (isPastClosing) {
+          targetStatus = pendingCount > 0 ? "Processing" : "Closed";
+        }
+        if (targetStatus !== j.status) {
+          j.status = targetStatus;
           j.updatedAt = now.toISOString();
           modified = true;
         }
@@ -560,8 +528,18 @@ app.get("/api/jobs", authMiddleware, async (req, res) => {
     const jobs = await Job.find({});
     const mapped = [];
     for (let j of jobs) {
-      if (j.status === "Open" && new Date(j.closingDate) < now) {
-        j.status = "Processing";
+      const closingTime = new Date(j.closingDate).getTime();
+      const isPastClosing = !isNaN(closingTime) && closingTime <= now.getTime();
+      const pendingCount = await Application.countDocuments({
+        jobId: { $in: [j._id.toString(), String(j._id), j.id].filter(Boolean) },
+        status: "Pending"
+      });
+      let targetStatus = "Open";
+      if (isPastClosing) {
+        targetStatus = pendingCount > 0 ? "Processing" : "Closed";
+      }
+      if (targetStatus !== j.status) {
+        j.status = targetStatus;
         await j.save();
       }
       const obj = j.toObject();
@@ -585,19 +563,24 @@ app.get("/api/dashboard/stats", authMiddleware, async (req, res) => {
     if (useLocalDb) {
       const jobs = readJobs();
       const applications = readApplications();
-      
+      const validJobIds = new Set(jobs.map(j => j._id || j.id));
+
+      const validApps = applications.filter(app => validJobIds.has(app.jobId));
       const totalJobs = jobs.length;
       const openJobs = jobs.filter(j => j.status === "Open").length;
-      const totalCVs = applications.length;
-      const shortlisted = applications.filter(app => app.status === "Shortlisted").length;
+      const totalCVs = validApps.length;
+      const shortlisted = validApps.filter(app => app.status === "Shortlisted").length;
 
       return res.json({ totalJobs, openJobs, totalCVs, shortlisted });
     }
 
+    const existingJobs = await Job.find({}).select("_id");
+    const validJobIds = existingJobs.map(j => j._id.toString());
+
     const totalJobs = await Job.countDocuments({});
     const openJobs = await Job.countDocuments({ status: "Open" });
-    const totalCVs = await Application.countDocuments({});
-    const shortlisted = await Application.countDocuments({ status: "Shortlisted" });
+    const totalCVs = await Application.countDocuments({ jobId: { $in: validJobIds } });
+    const shortlisted = await Application.countDocuments({ jobId: { $in: validJobIds }, status: "Shortlisted" });
 
     res.json({ totalJobs, openJobs, totalCVs, shortlisted });
   } catch (error) {
@@ -609,9 +592,11 @@ app.get("/api/dashboard/stats", authMiddleware, async (req, res) => {
 app.get("/api/jobs/:id", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
+    await checkAndUpdateJobStatus(id);
+
     if (useLocalDb) {
       const jobs = readJobs();
-      const job = jobs.find((j) => j._id === id);
+      const job = jobs.find((j) => j._id === id || j.id === id);
       if (!job) return res.status(404).json({ message: "Job not found" });
       return res.json({ ...job, id: job._id });
     }
@@ -668,8 +653,116 @@ app.post("/api/jobs", authMiddleware, async (req, res) => {
   }
 });
 
+// Delete a job post and all its associated applications (HR only)
+app.delete("/api/jobs/:id", authMiddleware, async (req, res) => {
+  try {
+    if (req.user.role !== "hr") {
+      return res.status(403).json({ message: "Access denied. Only HR can delete jobs." });
+    }
+    const { id } = req.params;
+
+    if (useLocalDb) {
+      const jobs = readJobs();
+      const jobIndex = jobs.findIndex((j) => j._id === id);
+      if (jobIndex === -1) return res.status(404).json({ message: "Job not found" });
+
+      // Remove the job
+      jobs.splice(jobIndex, 1);
+      writeJobs(jobs);
+
+      // Remove all applications for this job
+      const applications = readApplications();
+      const remaining = applications.filter((a) => a.jobId !== id);
+      writeApplications(remaining);
+
+      // Remove all interview schedules for this job
+      const schedules = readSchedules();
+      const remainingSchedules = schedules.filter((s) => s.jobId !== id);
+      writeSchedules(remainingSchedules);
+
+      const deletedCount = applications.length - remaining.length;
+      return res.json({ message: "Job, applications, and interview schedules deleted successfully", deletedApplications: deletedCount });
+    }
+
+    // MongoDB path
+    const job = await Job.findById(id);
+    if (!job) return res.status(404).json({ message: "Job not found" });
+
+    // Delete all applications for this job, and clean up Cloudinary CVs
+    const applications = await Application.find({ jobId: id });
+    for (const app of applications) {
+      if (app.cvUrl && app.cvUrl.includes("cloudinary.com") && process.env.CLOUDINARY_CLOUD_NAME) {
+        try {
+          // Extract public_id from Cloudinary URL
+          const urlParts = app.cvUrl.split("/");
+          const folderAndFile = urlParts.slice(-2).join("/"); // e.g. smarthire_cvs/cv_xxx
+          const publicId = folderAndFile.split(".")[0]; // strip extension if any
+          await cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
+        } catch (cloudErr) {
+          console.warn(`[Delete Job] Failed to delete Cloudinary CV for app ${app._id}:`, cloudErr.message);
+        }
+      }
+    }
+
+    const deletedAppsResult = await Application.deleteMany({ jobId: id });
+    await InterviewSchedule.deleteMany({ jobId: id });
+    await Job.findByIdAndDelete(id);
+
+    res.json({
+      message: "Job, applications, and interview schedules deleted successfully",
+      deletedApplications: deletedAppsResult.deletedCount,
+    });
+  } catch (error) {
+    console.error("Delete job error:", error);
+    res.status(500).json({ message: "Server error deleting job" });
+  }
+});
+
 // Serve local uploads statically
 app.use("/api/uploads", express.static(uploadDir));
+
+// Check if applicant has already applied for a specific job
+app.get("/api/jobs/:id/my-application", authMiddleware, async (req, res) => {
+  try {
+    const jobId = req.params.id;
+    const userId = req.user._id || req.user.id;
+    if (useLocalDb) {
+      const applications = readApplications();
+      const existing = applications.find(
+        (a) => String(a.jobId) === String(jobId) && String(a.applicantId) === String(userId)
+      );
+      return res.json({ hasApplied: !!existing, application: existing ? { ...existing, id: existing._id } : null });
+    }
+    const existing = await Application.findOne({ jobId, applicantId: userId });
+    res.json({ hasApplied: !!existing, application: existing ? { ...existing.toObject(), id: existing._id } : null });
+  } catch (error) {
+    console.error("Check my application error:", error);
+    res.status(500).json({ message: "Server error checking application status" });
+  }
+});
+
+// Fetch all applications submitted by the logged-in applicant
+app.get("/api/applications/my-applications", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user._id || req.user.id;
+    if (useLocalDb) {
+      const applications = readApplications();
+      const userApps = applications.filter((a) => String(a.applicantId) === String(userId));
+      const mapped = userApps.map((a) => ({ ...a, id: a._id }));
+      return res.json(mapped);
+    }
+    const userApps = await Application.find({ applicantId: userId });
+    const mapped = userApps.map((a) => {
+      const obj = a.toObject();
+      obj.id = obj._id;
+      return obj;
+    });
+    res.json(mapped);
+  } catch (error) {
+    console.error("Fetch my applications error:", error);
+    res.status(500).json({ message: "Server error fetching applications" });
+  }
+});
 
 // Apply to a job (File Upload to Cloudinary or Local Fallback)
 app.post("/api/jobs/:id/apply", authMiddleware, upload.single("cv"), async (req, res) => {
@@ -677,6 +770,22 @@ app.post("/api/jobs/:id/apply", authMiddleware, upload.single("cv"), async (req,
     const jobId = req.params.id;
     const userId = req.user._id || req.user.id;
     const userName = req.user.name;
+
+    // Guard: Prevent duplicate applications for the same job post
+    if (useLocalDb) {
+      const applications = readApplications();
+      const existing = applications.find(
+        (a) => String(a.jobId) === String(jobId) && String(a.applicantId) === String(userId)
+      );
+      if (existing) {
+        return res.status(400).json({ message: "You have already applied for this job." });
+      }
+    } else {
+      const existing = await Application.findOne({ jobId, applicantId: userId });
+      if (existing) {
+        return res.status(400).json({ message: "You have already applied for this job." });
+      }
+    }
 
     if (!req.file) {
       return res.status(400).json({ message: "No CV file uploaded" });
@@ -724,6 +833,8 @@ app.post("/api/jobs/:id/apply", authMiddleware, upload.single("cv"), async (req,
       jobId,
       applicantId: userId,
       applicantName: userName,
+      email: req.user?.email || "",
+      phone: "",
       fileName,
       cvUrl,
       status: "Pending"
@@ -870,10 +981,10 @@ function downloadFile(url, destPath, redirectCount = 0) {
 function runPythonParser(pdfPath) {
   return new Promise((resolve, reject) => {
     // Cross-platform: detect OS to use correct venv path
-    // Windows: venv/Scripts/python.exe  |  Linux: venv/bin/python3
+    // Windows: .venv/Scripts/python.exe  |  Linux: .venv/bin/python3
     const isWindows = process.platform === "win32";
     const backendDir = path.join(__dirname, "..", "backend");
-    const pythonPath = path.join(backendDir, "venv", isWindows ? "Scripts" : "bin", isWindows ? "python.exe" : "python3");
+    const pythonPath = path.join(backendDir, ".venv", isWindows ? "Scripts" : "bin", isWindows ? "python.exe" : "python3");
     const scriptPath = path.join(backendDir, "scripts", "parse_single.py");
 
     console.log(`[AI Pipeline] Spawning script: ${pythonPath} ${scriptPath} "${pdfPath}"`);
@@ -882,6 +993,11 @@ function runPythonParser(pdfPath) {
 
     let stdoutData = "";
     let stderrData = "";
+
+    // Handle spawn errors (e.g. python executable not found) gracefully so Node doesn't crash
+    pyProcess.on("error", (spawnErr) => {
+      reject(new Error(`[AI Pipeline] Failed to spawn Python process: ${spawnErr.message}. Check that the virtual environment exists at: ${pythonPath}`));
+    });
 
     pyProcess.stdout.on("data", (data) => {
       stdoutData += data.toString();
@@ -893,7 +1009,30 @@ function runPythonParser(pdfPath) {
 
     pyProcess.on("close", (code) => {
       if (code !== 0) {
-        return reject(new Error(`Python process exited with code ${code}. Stderr: ${stderrData}`));
+        // parse_single.py prints errors as JSON to stdout (not stderr).
+        // Try to extract the JSON error message before falling back to a generic message.
+        let pyErrorMsg = "";
+        try {
+          const lines = stdoutData.trim().split("\n");
+          for (let i = lines.length - 1; i >= 0; i--) {
+            const trimmed = lines[i].trim();
+            if (trimmed.startsWith("{")) {
+              const parsed = JSON.parse(trimmed);
+              if (parsed.error) {
+                pyErrorMsg = parsed.error;
+                if (parsed.traceback) {
+                  console.error(`[AI Pipeline] Python traceback:\n${parsed.traceback}`);
+                }
+              }
+              break;
+            }
+          }
+        } catch (_) { /* ignore JSON parse errors during error extraction */ }
+
+        const fullError = pyErrorMsg || stderrData || stdoutData.substring(0, 800) || "Unknown Python error";
+        console.error(`[AI Pipeline] Python stdout dump:\n${stdoutData.substring(0, 1000)}`);
+        console.error(`[AI Pipeline] Python stderr dump:\n${stderrData.substring(0, 500)}`);
+        return reject(new Error(`Python process exited with code ${code}. Error: ${fullError}`));
       }
       try {
         // Library logs (YOLO, PaddleOCR, BertNER) pollute stdout before the JSON result.
@@ -908,10 +1047,13 @@ function runPythonParser(pdfPath) {
           }
         }
         if (!jsonLine) {
+          console.error(`[AI Pipeline] Python stdout dump:\n${stdoutData.substring(0, 1000)}`);
           return reject(new Error(`No JSON found in Python stdout. Output: ${stdoutData.substring(0, 500)}`));
         }
         const parsed = JSON.parse(jsonLine);
         if (parsed.error) {
+          console.error(`[AI Pipeline] Python error: ${parsed.error}`);
+          if (parsed.traceback) console.error(`[AI Pipeline] Python traceback:\n${parsed.traceback}`);
           return reject(new Error(`Python script internal error: ${parsed.error}`));
         }
         resolve(parsed);
@@ -920,6 +1062,51 @@ function runPythonParser(pdfPath) {
       }
     });
   });
+}
+
+// Helper: Make HTTPS request with automatic retry on 429 rate limits
+async function httpsRequestWithRetry(options, body, maxRetries = 2) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await new Promise((resolve, reject) => {
+        const req = https.request(options, (res) => {
+          let responseData = '';
+          res.on('data', (chunk) => { responseData += chunk; });
+          res.on('end', () => {
+            if (res.statusCode >= 200 && res.statusCode < 300) {
+              try { resolve(JSON.parse(responseData)); }
+              catch (e) { reject(new Error("Failed to parse API JSON")); }
+            } else if (res.statusCode === 429 && attempt < maxRetries) {
+              // Rate limited - parse retry delay from API response
+              let retryDelay = 32;
+              try {
+                const errBody = JSON.parse(responseData);
+                const retryInfo = (errBody.error?.details || []).find(d => (d["@type"] || "").includes("RetryInfo"));
+                if (retryInfo?.retryDelay) {
+                  retryDelay = Math.min(parseInt(retryInfo.retryDelay) || 32, 120);
+                }
+              } catch (_) { }
+              reject({ __retryable: true, __delay: retryDelay });
+            } else {
+              reject(new Error(`API returned status ${res.statusCode}: ${responseData}`));
+            }
+          });
+        });
+        req.on('error', (e) => reject(e));
+        req.on('timeout', () => { req.destroy(); reject(new Error('API request timeout')); });
+        req.write(body);
+        req.end();
+      });
+      return result; // Success
+    } catch (err) {
+      if (err?.__retryable && attempt < maxRetries) {
+        console.log(`[AI Pipeline] Rate limited (429). Waiting ${err.__delay}s before retry ${attempt + 1}/${maxRetries}...`);
+        await new Promise(r => setTimeout(r, err.__delay * 1000));
+        continue;
+      }
+      throw err instanceof Error ? err : new Error(String(err));
+    }
+  }
 }
 
 // Compare candidate details with job description using AI (Gemini or Grok) API
@@ -938,11 +1125,15 @@ Output ONLY a valid JSON object matching this schema exactly:
 {
   "matchScore": <integer 0-100>,
   "skillsMatched": ["matched skill 1", "matched skill 2"],
+  "extractedSkills": ["individual technical skills found in candidate CV e.g. Figma, React, HTML, CSS, JavaScript, Python, SQL"],
+  "extractedRoles": ["work roles/job titles found in candidate CV e.g. UI/UX Designer, Software Engineer"],
   "educationMatch": "1-2 sentences on how education fits",
   "experienceMatch": "1-2 sentences on how experience fits",
   "explanation": "2-3 sentences overall evaluation",
   "isRecommended": <boolean true if score >= 70>
 }
+IMPORTANT:
+- extractedSkills must contain ONLY genuine technical skills (software tools, programming languages, methodologies). Exclude soft skill phrases like "Team Player" or "Referees". Each item MUST be a short skill name (1-3 words max).
 
 Job Requirements:
 Title: ${job.title}
@@ -969,7 +1160,7 @@ ${(candidate.rawText || "").substring(0, 3000)}`;
     const isGemini = !!geminiKey;
 
     if (isGemini) {
-      console.log("[AI Pipeline] Using Gemini AI for CV comparison (via https.request)");
+      console.log("[AI Pipeline]  CV comparison & entity extraction");
       hostname = "generativelanguage.googleapis.com";
       path = `/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
       requestBody = JSON.stringify({
@@ -977,7 +1168,7 @@ ${(candidate.rawText || "").substring(0, 3000)}`;
         generationConfig: { responseMimeType: "application/json" }
       });
     } else {
-      console.log("[AI Pipeline] Using Grok AI for CV comparison");
+      console.log("[AI Pipeline]  for CV comparison");
       hostname = "api.xai.com";
       path = "/v1/chat/completions";
       headers["Authorization"] = `Bearer ${grokKey}`;
@@ -999,24 +1190,7 @@ ${(candidate.rawText || "").substring(0, 3000)}`;
       timeout: 60000 // 60s timeout bypasses fetch bug
     };
 
-    const data = await new Promise((resolve, reject) => {
-      const req = https.request(options, (res) => {
-        let responseData = '';
-        res.on('data', (chunk) => { responseData += chunk; });
-        res.on('end', () => {
-          if (res.statusCode >= 200 && res.statusCode < 300) {
-            try { resolve(JSON.parse(responseData)); }
-            catch (e) { reject(new Error("Failed to parse API JSON")); }
-          } else {
-            reject(new Error(`API returned status ${res.statusCode}: ${responseData}`));
-          }
-        });
-      });
-      req.on('error', (e) => reject(e));
-      req.on('timeout', () => { req.destroy(); reject(new Error('Timeout after 60s')); });
-      req.write(requestBody);
-      req.end();
-    });
+    const data = await httpsRequestWithRetry(options, requestBody);
 
     let jsonString = "";
     if (isGemini) {
@@ -1102,9 +1276,20 @@ function simulateMatching(job, candidate) {
     explanation = `Candidate lacks several core requirements. They only matched ${matched.length} of the ${job.skills.length} essential skills. May not be the best fit unless they have alternative undocumented experience.`;
   }
 
+  // Extract technical skills fallback from rawText
+  const commonTech = [
+    "Figma", "HTML", "CSS", "React", "TypeScript", "JavaScript", "Node.js", "Python",
+    "SQL", "PostgreSQL", "MongoDB", "Docker", "AWS", "Java", "Spring Boot", "Git",
+    "Wireframing", "Prototyping", "User Research", "Adobe XD", "Data Analysis", "Pandas"
+  ];
+  const extractedSkillsFromRaw = commonTech.filter(tech => rawTextLower.includes(tech.toLowerCase()));
+  const allExtractedSkills = Array.from(new Set([...matched, ...extractedSkillsFromRaw, ...(candidate.skills || [])]));
+
   return {
     matchScore,
     skillsMatched: matched,
+    extractedSkills: allExtractedSkills,
+    extractedRoles: candidate.roles || [],
     educationMatch: eduMatchText,
     experienceMatch: expMatchText,
     explanation,
@@ -1224,22 +1409,62 @@ async function processCVApplication(applicationId) {
       projects: parserResult.entities.PROJECTS || [],
       rawText: parserResult.raw_text || ""
     });
-    console.log(`[AI Pipeline] Successfully completed AI comparison. Score: ${comparisonResult.matchScore}%`);
+    console.log(`[AI Pipeline] Successfully completed comparison. Score: ${comparisonResult.matchScore}%`);
 
     // 6. Update database record with parsed text, skills, and AI ratings
+    const junkPatterns = [
+      'non-related referees', 'team player', 'communication management',
+      'problem solving creativity', 'referees', 'soft skills', 'management skills'
+    ];
+
+    let candidateRawSkills = [];
+    if (comparisonResult.extractedSkills && Array.isArray(comparisonResult.extractedSkills) && comparisonResult.extractedSkills.length > 0) {
+      candidateRawSkills = comparisonResult.extractedSkills;
+    } else if (parserResult.entities?.SKILLS && Array.isArray(parserResult.entities.SKILLS)) {
+      candidateRawSkills = parserResult.entities.SKILLS;
+    }
+
+    const cleanSkills = [];
+    candidateRawSkills.forEach(item => {
+      if (typeof item === 'string') {
+        const parts = item.split(/[,;\n]/).map(p => p.trim()).filter(Boolean);
+        parts.forEach(p => {
+          const lower = p.toLowerCase();
+          if (p.length <= 35 && !junkPatterns.some(j => lower.includes(j))) {
+            cleanSkills.push(p);
+          }
+        });
+      }
+    });
+
+    const mergedSkills = Array.from(new Set(cleanSkills));
+
+    let candidateRawRoles = [];
+    if (comparisonResult.extractedRoles && Array.isArray(comparisonResult.extractedRoles) && comparisonResult.extractedRoles.length > 0) {
+      candidateRawRoles = comparisonResult.extractedRoles;
+    } else if (parserResult.entities?.ROLE && Array.isArray(parserResult.entities.ROLE)) {
+      candidateRawRoles = parserResult.entities.ROLE;
+    }
+    const mergedRoles = Array.from(new Set(candidateRawRoles.map(r => typeof r === 'string' ? r.trim() : r).filter(Boolean)));
+
+    const candidateEmail = parserResult.entities?.EMAIL || application.email || "";
+    const candidatePhone = parserResult.entities?.PHONE || application.phone || "";
+
     const updatedData = {
-      rawText: parserResult.raw_text,
-      skills: parserResult.entities.SKILLS || [],
-      education: parserResult.entities.EDUCATION || [],
-      roles: parserResult.entities.ROLE || [],
-      projects: parserResult.entities.PROJECTS || [],
-      matchScore: comparisonResult.matchScore,
+      rawText: parserResult.raw_text || application.rawText || "",
+      skills: mergedSkills,
+      education: parserResult.entities?.EDUCATION || application.education || [],
+      roles: mergedRoles,
+      projects: parserResult.entities?.PROJECTS || application.projects || [],
+      matchScore: comparisonResult.matchScore || 0,
       skillsMatched: comparisonResult.skillsMatched || [],
       educationMatch: comparisonResult.educationMatch || "-",
       experienceMatch: comparisonResult.experienceMatch || "-",
       explanation: comparisonResult.explanation || "",
       isRecommended: comparisonResult.isRecommended || false,
-      status: comparisonResult.isRecommended ? "Shortlisted" : "Rejected"
+      status: comparisonResult.isRecommended ? "Shortlisted" : "Rejected",
+      email: candidateEmail,
+      phone: candidatePhone
     };
 
     if (useLocalDb) {
@@ -1277,6 +1502,9 @@ async function processCVApplication(applicationId) {
     }
 
     console.log(`[AI Pipeline] Completed analysis successfully for Application ID: ${applicationId}`);
+    
+    // Automatically update job status (Processing -> Closed if no pending applications remain)
+    await checkAndUpdateJobStatus(application.jobId);
   } catch (err) {
     console.error(`[AI Pipeline] Error during CV background processing:`, err);
     throw err;
@@ -1328,35 +1556,197 @@ app.post("/api/applications/:id/analyze", authMiddleware, async (req, res) => {
   }
 });
 
-// Send email to a candidate (marks as sent, prevents future clicks)
+async function sendEmailViaEmailJS({ to_name, to_email, job_title, match_score, explanation, interview_date, interview_time, interview_location, interview_notes }) {
+  const serviceId = process.env.EMAILJS_SERVICE_ID || "service_iein0zd";
+  const templateId = process.env.EMAILJS_TEMPLATE_ID || "template_97iudie";
+  const publicKey = process.env.EMAILJS_PUBLIC_KEY || "ydzmOOOPAA1Jt28-I";
+  const privateKey = process.env.EMAILJS_PRIVATE_KEY || "aLth2rUYRoIM1es1FqIMB";
+
+  if (!to_email) {
+    console.warn("[EmailJS] Cannot send email: recipient address is empty.");
+    return { success: false, error: "Recipient email is missing" };
+  }
+
+  let messageText = "";
+  if (interview_date && interview_time) {
+    messageText = `Dear ${to_name},\n\nWe are pleased to invite you for an interview for the ${job_title} position!\n\nHere are your interview details:\n- Date: ${interview_date}\n- Time: ${interview_time}\n- Location: ${interview_location || "Zoom / Online"}\n${interview_notes ? `- Notes: ${interview_notes}\n` : ""}\nMatch Score: ${match_score}%\nAI Feedback: ${explanation}\n\nOur recruitment team will be in touch with you soon.\n\nBest regards,\nSmartHire HR Team`;
+  } else {
+    messageText = `Dear ${to_name},\n\nWe are pleased to inform you that your application for the ${job_title} position has been reviewed.\n\nMatch Score: ${match_score}%\nAI Feedback: ${explanation}\n\nOur recruitment team will be in touch with you soon.\n\nBest regards,\nSmartHire HR Team`;
+  }
+
+  const payload = JSON.stringify({
+    service_id: serviceId,
+    template_id: templateId,
+    user_id: publicKey,
+    accessToken: privateKey,
+    template_params: {
+      candidate_email: to_email,
+      to_email: to_email,
+      user_email: to_email,
+      applicant_email: to_email,
+      email: to_email,
+      name: to_name || "Candidate",
+      to_name: to_name || "Candidate",
+      title: job_title || "Position",
+      job_title: job_title || "Position",
+      match_score: match_score ? `${match_score}%` : "",
+      explanation: explanation || "",
+      interview_date: interview_date || "",
+      interview_time: interview_time || "",
+      interview_location: interview_location || "",
+      interview_notes: interview_notes || "",
+      message: messageText
+    }
+  });
+
+  return new Promise((resolve) => {
+    const req = https.request({
+      hostname: "api.emailjs.com",
+      port: 443,
+      path: "/api/v1.0/email/send",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(payload)
+      },
+      timeout: 15000
+    }, (res) => {
+      let body = "";
+      res.on("data", chunk => body += chunk);
+      res.on("end", () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          console.log(`[EmailJS] Successfully sent email to ${to_email}`);
+          resolve({ success: true, message: body });
+        } else {
+          console.error(`[EmailJS] Response status ${res.statusCode} for ${to_email}: ${body}`);
+          resolve({ success: false, status: res.statusCode, error: body });
+        }
+      });
+    });
+
+    req.on("error", (err) => {
+      console.error("[EmailJS] HTTPS request error:", err.message);
+      resolve({ success: false, error: err.message });
+    });
+
+    req.on("timeout", () => {
+      req.destroy();
+      resolve({ success: false, error: "Timeout sending email via EmailJS" });
+    });
+
+    req.write(payload);
+    req.end();
+  });
+}
+
+// Send email to a candidate (via EmailJS & marks as sent in database)
 app.post("/api/applications/:id/send-email", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { jobId, applicantId, applicantName } = req.body;
-    
+    const { jobId, applicantId, applicantName, matchScore, explanation } = req.body;
+
     if (req.user.role !== "hr") {
       return res.status(403).json({ message: "Access denied. Only HR can send emails." });
+    }
+
+    let application;
+    let jobTitle = "Job Position";
+    let recipientEmail = "";
+
+    if (useLocalDb) {
+      const applications = readApplications();
+      application = applications.find(a => a._id === id || a.id === id);
+    } else {
+      application = await Application.findById(id);
+    }
+
+    if (application) {
+      recipientEmail = application.email;
+      if (!recipientEmail && application.applicantId) {
+        if (useLocalDb) {
+          const users = readUsers();
+          const u = users.find(usr => usr._id === application.applicantId);
+          if (u) recipientEmail = u.email;
+        } else {
+          const u = await User.findById(application.applicantId);
+          if (u) recipientEmail = u.email;
+        }
+      }
+      if (!recipientEmail && application.rawText) {
+        const regexInfo = extractContactFromRawText(application.rawText);
+        recipientEmail = regexInfo.email;
+      }
+
+      const targetJobId = application.jobId || jobId;
+      if (targetJobId) {
+        if (useLocalDb) {
+          const jobs = readJobs();
+          const j = jobs.find(jb => jb._id === targetJobId);
+          if (j) jobTitle = j.title;
+        } else {
+          const j = await Job.findById(targetJobId);
+          if (j) jobTitle = j.title;
+        }
+      }
+    } else {
+      recipientEmail = req.body.email || "";
+    }
+
+    const candidateName = applicantName || application?.applicantName || "Candidate";
+
+    let interviewSchedule = null;
+    const targetJobId = application?.jobId || jobId;
+    if (targetJobId) {
+      if (useLocalDb) {
+        const schedules = readSchedules();
+        interviewSchedule = schedules.find(s => s.jobId === targetJobId);
+      } else {
+        interviewSchedule = await InterviewSchedule.findOne({ jobId: targetJobId });
+      }
+    }
+
+    if (recipientEmail) {
+      console.log(`[Send Email] Dispatching email to ${candidateName} <${recipientEmail}> for job "${jobTitle}"...`);
+      const emailResult = await sendEmailViaEmailJS({
+        to_name: candidateName,
+        to_email: recipientEmail,
+        job_title: jobTitle,
+        match_score: matchScore || application?.matchScore || 0,
+        explanation: explanation || application?.explanation || "",
+        interview_date: interviewSchedule ? interviewSchedule.date : "",
+        interview_time: interviewSchedule ? interviewSchedule.time : "",
+        interview_location: interviewSchedule ? interviewSchedule.location : "",
+        interview_notes: interviewSchedule ? interviewSchedule.notes : ""
+      });
+      if (!emailResult.success) {
+        return res.status(400).json({
+          message: `EmailJS error: ${emailResult.error || "Account not found or misconfigured"}. Please verify your Public Key and Service ID in the .env file.`
+        });
+      }
+    } else {
+      console.warn(`[Send Email] Warning: Candidate email missing for application ${id}`);
+      return res.status(400).json({ message: "No email address found for this candidate." });
     }
 
     if (useLocalDb) {
       const applications = readApplications();
       let app = applications.find(a => a._id === id || a.id === id);
       if (!app) {
-        // Create placeholder application for mock results in local database
         app = {
           _id: id,
           jobId: jobId || "j4",
           applicantId: applicantId || "a4",
-          applicantName: applicantName || "Dinithi Jayasuriya",
-          fileName: `${(applicantName || "Candidate").replace(/\s+/g, '_')}_CV.pdf`,
+          applicantName: candidateName,
+          email: recipientEmail,
+          fileName: `${candidateName.replace(/\s+/g, '_')}_CV.pdf`,
           cvUrl: "#",
           status: "Pending",
           emailSent: true,
-          matchScore: req.body.matchScore || 0,
+          matchScore: matchScore || 0,
           skillsMatched: req.body.skillsMatched || [],
           educationMatch: req.body.educationMatch || "",
           experienceMatch: req.body.experienceMatch || "",
-          explanation: req.body.explanation || "",
+          explanation: explanation || "",
           isRecommended: req.body.isRecommended || false,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
@@ -1367,30 +1757,30 @@ app.post("/api/applications/:id/send-email", authMiddleware, async (req, res) =>
           return res.status(400).json({ message: "Email has already been sent to this candidate" });
         }
         app.emailSent = true;
+        if (recipientEmail) app.email = recipientEmail;
         app.updatedAt = new Date().toISOString();
       }
       writeApplications(applications);
-      return res.json({ ...app, id: app._id });
+      return res.json({ ...app, id: app._id, recipientEmail });
     }
 
     // MongoDB path
-    let application = await Application.findById(id);
     if (!application) {
-      // Create placeholder application for mock results in MongoDB
       application = new Application({
         _id: id,
         jobId: jobId || "j4",
         applicantId: applicantId || "a4",
-        applicantName: applicantName || "Dinithi Jayasuriya",
-        fileName: `${(applicantName || "Candidate").replace(/\s+/g, '_')}_CV.pdf`,
+        applicantName: candidateName,
+        email: recipientEmail,
+        fileName: `${candidateName.replace(/\s+/g, '_')}_CV.pdf`,
         cvUrl: "#",
         status: "Pending",
         emailSent: true,
-        matchScore: req.body.matchScore || 0,
+        matchScore: matchScore || 0,
         skillsMatched: req.body.skillsMatched || [],
         educationMatch: req.body.educationMatch || "",
         experienceMatch: req.body.experienceMatch || "",
-        explanation: req.body.explanation || "",
+        explanation: explanation || "",
         isRecommended: req.body.isRecommended || false
       });
       await application.save();
@@ -1399,10 +1789,12 @@ app.post("/api/applications/:id/send-email", authMiddleware, async (req, res) =>
         return res.status(400).json({ message: "Email has already been sent to this candidate" });
       }
       application.emailSent = true;
+      if (recipientEmail) application.email = recipientEmail;
       await application.save();
     }
     const obj = application.toObject();
     obj.id = obj._id;
+    obj.recipientEmail = recipientEmail;
     res.json(obj);
   } catch (error) {
     console.error("Send email error:", error);
@@ -1462,28 +1854,20 @@ ${rawText.substring(0, 4000)}
     timeout: 30000
   };
 
-  const data = await new Promise((resolve, reject) => {
-    const req = https.request(options, (res) => {
-      let responseData = '';
-      res.on('data', (chunk) => { responseData += chunk; });
-      res.on('end', () => {
-        if (res.statusCode >= 200 && res.statusCode < 300) {
-          try { resolve(JSON.parse(responseData)); }
-          catch (e) { reject(new Error("Failed to parse API JSON")); }
-        } else {
-          reject(new Error(`API returned status ${res.statusCode}: ${responseData}`));
-        }
-      });
-    });
-    req.on('error', (e) => reject(e));
-    req.on('timeout', () => { req.destroy(); reject(new Error('Timeout after 30s')); });
-    req.write(requestBody);
-    req.end();
-  });
+  const data = await httpsRequestWithRetry(options, requestBody);
 
   let jsonString = data.candidates[0].content.parts[0].text;
   jsonString = jsonString.replace(/```json/g, '').replace(/```/g, '').trim();
   return JSON.parse(jsonString);
+}
+
+function extractContactFromRawText(text) {
+  if (!text) return { email: "", phone: "" };
+  const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  const email = emailMatch ? emailMatch[0] : "";
+  const phoneMatch = text.match(/(?:\+?\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,4}/);
+  const phone = phoneMatch ? phoneMatch[0].trim() : "";
+  return { email, phone };
 }
 
 // Fetch candidate email and phone details dynamically (HR access only)
@@ -1500,19 +1884,43 @@ app.get("/api/applications/:id/contact-info", authMiddleware, async (req, res) =
       if (!app) {
         return res.json(getMockContactDetails(id));
       }
-      if (app.email && app.phone) {
-        return res.json({ name: app.applicantName, email: app.email, phone: app.phone });
+      if (app.email || app.phone) {
+        const regexInfo = extractContactFromRawText(app.rawText || "");
+        return res.json({
+          name: app.applicantName,
+          email: app.email || regexInfo.email || "",
+          phone: app.phone || regexInfo.phone || ""
+        });
       }
       if (app.rawText) {
         try {
           const contact = await extractContactInfoWithGemini(app.rawText);
+          const regexInfo = extractContactFromRawText(app.rawText);
+          const finalEmail = contact.email || regexInfo.email || "";
+          const finalPhone = contact.phone || regexInfo.phone || "";
+
+          // Cache extracted contact info to avoid future API calls
+          const allApps = readApplications();
+          const cacheIdx = allApps.findIndex(a => a._id === id || a.id === id);
+          if (cacheIdx !== -1) {
+            allApps[cacheIdx].email = finalEmail;
+            allApps[cacheIdx].phone = finalPhone;
+            allApps[cacheIdx].updatedAt = new Date().toISOString();
+            writeApplications(allApps);
+          }
           return res.json({
             name: contact.name || app.applicantName,
-            email: contact.email || "",
-            phone: contact.phone || ""
+            email: finalEmail,
+            phone: finalPhone
           });
         } catch (err) {
           console.error("Gemini contact extraction failed (local DB):", err.message);
+          const regexInfo = extractContactFromRawText(app.rawText);
+          return res.json({
+            name: app.applicantName,
+            email: regexInfo.email || "",
+            phone: regexInfo.phone || ""
+          });
         }
       }
       return res.json({ name: app.applicantName, email: app.email || "", phone: app.phone || "" });
@@ -1524,16 +1932,39 @@ app.get("/api/applications/:id/contact-info", authMiddleware, async (req, res) =
       return res.json(getMockContactDetails(id));
     }
 
+    if (application.email || application.phone) {
+      const regexInfo = extractContactFromRawText(application.rawText || "");
+      return res.json({
+        name: application.applicantName,
+        email: application.email || regexInfo.email || "",
+        phone: application.phone || regexInfo.phone || ""
+      });
+    }
+
     if (application.rawText) {
       try {
         const contact = await extractContactInfoWithGemini(application.rawText);
+        const regexInfo = extractContactFromRawText(application.rawText);
+        const finalEmail = contact.email || regexInfo.email || "";
+        const finalPhone = contact.phone || regexInfo.phone || "";
+
+        // Cache extracted contact info to avoid future API calls
+        await Application.findByIdAndUpdate(id, {
+          $set: { email: finalEmail, phone: finalPhone }
+        });
         return res.json({
           name: contact.name || application.applicantName,
-          email: contact.email || "",
-          phone: contact.phone || ""
+          email: finalEmail,
+          phone: finalPhone
         });
       } catch (err) {
         console.error("Gemini contact extraction failed (MongoDB):", err.message);
+        const regexInfo = extractContactFromRawText(application.rawText);
+        return res.json({
+          name: application.applicantName,
+          email: regexInfo.email || "",
+          phone: regexInfo.phone || ""
+        });
       }
     }
 
@@ -1636,63 +2067,123 @@ app.get("/api/applications/search", authMiddleware, async (req, res) => {
     if (skills) {
       const skillsList = skills.split(",").map(s => s.trim()).filter(Boolean);
       if (skillsList.length > 0) {
-        filter.skills = { $all: skillsList.map(s => new RegExp("^" + s + "$", "i")) };
+        const skillRegexes = skillsList.map(s => new RegExp(s.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), "i"));
+        filter.$and = filter.$and || [];
+        skillRegexes.forEach(regex => {
+          filter.$and.push({
+            $or: [
+              { skills: { $regex: regex } },
+              { skillsMatched: { $regex: regex } }
+            ]
+          });
+        });
       }
     }
 
     if (roles) {
       const rolesList = roles.split(",").map(r => r.trim()).filter(Boolean);
       if (rolesList.length > 0) {
-        filter.roles = { $in: rolesList.map(r => new RegExp(r, "i")) };
+        const roleRegexes = rolesList.map(r => new RegExp(r.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), "i"));
+        const matchingJobs = await Job.find({
+          $or: roleRegexes.map(regex => ({ title: { $regex: regex } }))
+        }).select("_id id title");
+
+        const matchingJobIdStrings = matchingJobs.map(j => (j._id || j.id).toString());
+        const matchingJobObjectIds = matchingJobIdStrings
+          .filter(idStr => mongoose.Types.ObjectId.isValid(idStr))
+          .map(idStr => new mongoose.Types.ObjectId(idStr));
+
+        const allJobIdMatches = [...matchingJobIdStrings, ...matchingJobObjectIds];
+
+        filter.$and = filter.$and || [];
+        const roleOrConditions = roleRegexes.map(regex => ({ roles: { $regex: regex } }));
+
+        if (allJobIdMatches.length > 0) {
+          roleOrConditions.push({ jobId: { $in: allJobIdMatches } });
+        }
+
+        filter.$and.push({ $or: roleOrConditions });
       }
     }
 
     if (query) {
-      filter.$text = { $search: query };
+      const queryRegex = new RegExp(query.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), "i");
+      filter.$and = filter.$and || [];
+      filter.$and.push({
+        $or: [
+          { applicantName: { $regex: queryRegex } },
+          { rawText: { $regex: queryRegex } },
+          { skills: { $regex: queryRegex } },
+          { skillsMatched: { $regex: queryRegex } },
+          { roles: { $regex: queryRegex } }
+        ]
+      });
     }
 
     if (useLocalDb) {
       let applications = readApplications();
-      
+      const jobs = readJobs();
+      const validJobIds = new Set(jobs.map(j => j._id || j.id));
+
+      // Filter out orphaned applications (where job has been deleted)
+      applications = applications.filter(app => validJobIds.has(app.jobId));
+
       if (status) {
         applications = applications.filter(app => app.status === status);
       }
-      
+
       if (minScore) {
         applications = applications.filter(app => (app.matchScore || 0) >= Number(minScore));
       }
-      
+
       if (skills) {
         const skillsList = skills.toLowerCase().split(",").map(s => s.trim()).filter(Boolean);
         applications = applications.filter(app => {
-          const appSkills = (app.skills || []).map(s => s.toLowerCase());
-          return skillsList.every(s => appSkills.includes(s));
+          const appSkills = (app.skills || []).map(s => String(s).toLowerCase());
+          const matchedSkills = (app.skillsMatched || []).map(s => String(s).toLowerCase());
+          const allSkills = [...appSkills, ...matchedSkills];
+          return skillsList.every(s => allSkills.some(as => as.includes(s)));
         });
       }
-      
+
       if (roles) {
         const rolesList = roles.toLowerCase().split(",").map(r => r.trim()).filter(Boolean);
         applications = applications.filter(app => {
-          const appRoles = (app.roles || []).map(r => r.toLowerCase());
-          return rolesList.some(r => appRoles.some(ar => ar.includes(r)));
+          const appRoles = (app.roles || []).map(r => String(r).toLowerCase());
+          const job = jobs.find(j => (j._id || j.id).toString() === String(app.jobId));
+          const jobTitle = job ? job.title.toLowerCase() : "";
+          return rolesList.some(r =>
+            appRoles.some(ar => ar.includes(r)) ||
+            jobTitle.includes(r)
+          );
         });
       }
-      
+
       if (query) {
         const queryLower = query.toLowerCase();
         applications = applications.filter(app => {
           return (
             (app.applicantName && app.applicantName.toLowerCase().includes(queryLower)) ||
             (app.rawText && app.rawText.toLowerCase().includes(queryLower)) ||
-            (app.skills && app.skills.some(s => s.toLowerCase().includes(queryLower))) ||
-            (app.roles && app.roles.some(r => r.toLowerCase().includes(queryLower)))
+            (app.skills && app.skills.some(s => String(s).toLowerCase().includes(queryLower))) ||
+            (app.roles && app.roles.some(r => String(r).toLowerCase().includes(queryLower)))
           );
         });
       }
-      
+
       const mapped = applications.map(app => ({ ...app, id: app._id }));
       return res.json(mapped);
     }
+
+    // MongoDB path: Only include applications whose jobId belongs to an existing Job
+    const existingJobs = await Job.find({}).select("_id");
+    const validJobIdStrings = existingJobs.map(j => j._id.toString());
+    const validJobObjectIds = existingJobs
+      .map(j => j._id)
+      .filter(id => mongoose.Types.ObjectId.isValid(id.toString()))
+      .map(id => new mongoose.Types.ObjectId(id.toString()));
+
+    filter.jobId = { $in: [...validJobIdStrings, ...validJobObjectIds] };
 
     const applications = await Application.find(filter);
     const mapped = applications.map(app => {
@@ -1712,7 +2203,7 @@ app.post("/api/applications/:id/status", authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, comment } = req.body;
-    
+
     if (req.user.role !== "hr") {
       return res.status(403).json({ message: "Access denied. Only HR can update application status." });
     }
@@ -1746,8 +2237,9 @@ app.post("/api/applications/:id/status", authMiddleware, async (req, res) => {
         statusHistory: newHistory,
         updatedAt: new Date().toISOString()
       };
-      
+
       writeApplications(applications);
+      await checkAndUpdateJobStatus(applications[idx].jobId);
       return res.json({ ...applications[idx], id: applications[idx]._id });
     }
 
@@ -1767,6 +2259,7 @@ app.post("/api/applications/:id/status", authMiddleware, async (req, res) => {
     });
 
     await app.save();
+    await checkAndUpdateJobStatus(app.jobId);
     const obj = app.toObject();
     obj.id = obj._id;
     res.json(obj);

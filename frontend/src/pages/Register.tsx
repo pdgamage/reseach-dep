@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { FiEye, FiEyeOff } from "react-icons/fi";
 import toast from "react-hot-toast";
+import { GoogleLogin } from "@react-oauth/google";
+import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 function getPasswordStrength(pw: string): { score: number; label: string } {
   let score = 0;
@@ -46,6 +49,47 @@ interface RegForm {
 }
 
 export default function RegisterPage() {
+  const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    if (!credentialResponse.credential) {
+      toast.error("Google registration failed. No credential received.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          credential: credentialResponse.credential,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        setSuccess(true);
+        toast.success("Account created successfully with Google! Redirecting...");
+        login(data.user, data.token);
+
+        setTimeout(() => {
+          navigate("/jobs");
+        }, 1000);
+      } else {
+        toast.error(data.message || "Google registration failed.");
+      }
+    } catch (error) {
+      console.error("Google registration request error:", error);
+      toast.error("Unable to connect to the server. Please try again later.");
+    } finally {
+      setLoading(false);
+    }
+  };
   const [form, setForm] = useState<RegForm>({
     role: "seeker",
     firstName: "",
@@ -367,6 +411,33 @@ export default function RegisterPage() {
                 "Create Account →"
               )}
             </button>
+
+            {/* Divider & Google Signup (Applicant Only) */}
+            {form.role === "seeker" && (
+              <>
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-200" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-3 text-slate-400 font-medium">Or sign up with</span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center justify-center w-full min-h-[44px]">
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => toast.error("Google Sign-Up failed. Please try again.")}
+                    shape="rectangular"
+                    theme="outline"
+                    size="large"
+                    width="100%"
+                    text="signup_with"
+                  />
+                  <span className="text-[11px] text-slate-400 mt-1">Quick registration for Applicants</span>
+                </div>
+              </>
+            )}
 
             <div className="text-center mt-6 text-sm text-slate-500">
               Already have an account?{" "}

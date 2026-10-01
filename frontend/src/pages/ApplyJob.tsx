@@ -10,7 +10,8 @@ import {
   CheckCircleIcon,
   AlertCircleIcon,
   InfoIcon,
-  XIcon
+  XIcon,
+  Loader2Icon
 } from 'lucide-react';
 
 /* ─── Poppins font — matches ApplicantJobList font style ─── */
@@ -26,25 +27,33 @@ export function ApplyJob() {
   const [isDragging, setIsDragging] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [alreadyApplied, setAlreadyApplied] = useState(false);
+  const [existingApp, setExistingApp] = useState<any>(null);
   const [error, setError] = useState('');
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
-    const fetchJob = async () => {
+    const fetchData = async () => {
       try {
         const token = localStorage.getItem("smarthire_token");
-        const res = await fetch(`/api/jobs/${id}`, {
-          headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
+        const headers = { Authorization: `Bearer ${token}` };
+        const res = await fetch(`/api/jobs/${id}`, { headers });
         if (!res.ok) {
           throw new Error("Job not found");
         }
         const data = await res.json();
         setJob(data);
+
+        const appRes = await fetch(`/api/jobs/${id}/my-application`, { headers });
+        if (appRes.ok) {
+          const appData = await appRes.json();
+          if (appData.hasApplied) {
+            setAlreadyApplied(true);
+            setExistingApp(appData.application);
+          }
+        }
       } catch (err: any) {
         console.error(err);
         toast.error("Failed to load job details");
@@ -53,7 +62,7 @@ export function ApplyJob() {
         setLoading(false);
       }
     };
-    fetchJob();
+    fetchData();
   }, [id, navigate]);
 
   if (loading || !job) {
@@ -108,6 +117,7 @@ export function ApplyJob() {
     }
   };
   const handleSubmit = async () => {
+    if (isSubmitting) return;
     if (!file) {
       setError('Please upload your CV first');
       return;
@@ -129,6 +139,9 @@ export function ApplyJob() {
 
       if (!res.ok) {
         const data = await res.json();
+        if (data.message && data.message.includes("already applied")) {
+          setAlreadyApplied(true);
+        }
         throw new Error(data.message || "Failed to submit application");
       }
 
@@ -237,7 +250,26 @@ export function ApplyJob() {
             Upload your CV
           </h3>
 
-          {isClosed ?
+          {alreadyApplied ?
+            <div className="bg-amber-50/90 border border-amber-200 rounded-xl p-8 text-center shadow-sm">
+              <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircleIcon className="w-8 h-8 text-amber-600" />
+              </div>
+              <h4 className="text-xl font-bold text-amber-900 mb-2">
+                Already Applied for this Job
+              </h4>
+              <p className="text-sm text-amber-800 mb-4 max-w-md mx-auto leading-relaxed">
+                You have already submitted your CV (<span className="font-semibold text-amber-950">{existingApp?.fileName || 'Uploaded CV'}</span>) for the position of <span className="font-semibold text-amber-950">{job.title}</span>.
+              </p>
+              <p className="text-xs text-amber-700/80 mb-6">
+                Applicants are permitted to submit only one application per job post.
+              </p>
+              <button
+                onClick={() => navigate('/jobs')}
+                className="bg-amber-600 text-white px-6 py-2.5 rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors shadow-sm">
+                Browse Other Jobs
+              </button>
+            </div> : isClosed ?
             <div className="bg-rose-50 border border-rose-200 rounded-xl p-6 text-center">
               <AlertCircleIcon className="w-10 h-10 text-rose-500 mx-auto mb-3" />
               <h4 className="text-lg font-medium text-rose-900 mb-1">
@@ -314,11 +346,19 @@ export function ApplyJob() {
 
               <div className="mt-8 flex justify-end">
                 <button
+                  type="button"
                   onClick={handleSubmit}
                   disabled={!file || isSubmitting}
-                  className="bg-indigo-600 text-white px-8 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-70 disabled:cursor-not-allowed shadow-sm flex items-center gap-2">
+                  className="bg-indigo-600 text-white px-8 py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed disabled:pointer-events-none shadow-sm flex items-center justify-center gap-2 min-w-[180px]">
 
-                  {isSubmitting ? 'Uploading...' : 'Submit Application'}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2Icon className="w-4 h-4 animate-spin" />
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    'Submit Application'
+                  )}
                 </button>
               </div>
             </>

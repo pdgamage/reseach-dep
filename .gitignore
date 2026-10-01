@@ -53,3 +53,8 @@ backend/models/bert/model.bin
 backend/models/best.pt
 backend/models/bert/meta.bin
 backend/models/model-best/
+
+# Downloaded binaries & archives
+backend/poppler/
+*.zip
+*.rar

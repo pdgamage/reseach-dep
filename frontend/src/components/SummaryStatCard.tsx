@@ -1,9 +1,8 @@
-import React from 'react';
-import { BoxIcon } from 'lucide-react';
+import { LucideIcon } from 'lucide-react';
 interface SummaryStatCardProps {
   title: string;
   value: string | number;
-  icon: BoxIcon;
+  icon: LucideIcon | React.ComponentType<{ className?: string }>;
   trend?: string;
   trendUp?: boolean;
 }

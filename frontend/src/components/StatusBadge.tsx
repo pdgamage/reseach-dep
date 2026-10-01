@@ -1,4 +1,3 @@
-import React from 'react';
 import { JobStatus } from '../data/mockData';
 interface StatusBadgeProps {
   status: JobStatus;

@@ -114,11 +114,37 @@ export function HRDashboard() {
     fetchDashboardData();
   }, []);
 
+  const getEffectiveStatus = (job: Job): JobStatus => {
+    const isPastClosing = new Date(job.closingDate).getTime() <= Date.now();
+    if (isPastClosing && job.status === 'Open') {
+      return (job.cvCount || 0) > 0 ? 'Processing' : 'Closed';
+    }
+    return job.status;
+  };
+
   const filteredJobs = jobs.filter((job) => {
     const matchesSearch = job.title.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || job.status === statusFilter;
+    const effectiveStatus = getEffectiveStatus(job);
+    const matchesStatus = statusFilter === 'All' || effectiveStatus === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const handleDeleteJob = async (jobId: string) => {
+    try {
+      const token = localStorage.getItem('smarthire_token');
+      const res = await fetch(`/api/jobs/${jobId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to delete job');
+      const data = await res.json();
+      setJobs((prev) => prev.filter((j) => (j.id || (j as any)._id) !== jobId));
+      toast.success(`Job deleted. ${data.deletedApplications} application(s) removed.`);
+    } catch (err: any) {
+      console.error(err);
+      toast.error('Failed to delete job');
+    }
+  };
 
   /* ── Loading Skeleton ── */
   if (loading) {

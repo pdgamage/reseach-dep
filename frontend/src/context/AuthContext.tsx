@@ -1,4 +1,4 @@
-import React, { useState, useEffect, createContext, useContext, ReactNode } from "react";
+import { useState, useEffect, createContext, useContext, ReactNode } from "react";
 
 export type Role = "hr" | "applicant";
 
@@ -7,6 +7,8 @@ export interface User {
   name: string;
   email: string;
   role: Role;
+  avatar?: string;
+  authProvider?: string;
 }
 
 interface AuthContextType {

@@ -41,6 +41,8 @@ export interface ShortlistResult {
   explanation: string;
   isRecommended: boolean;
   emailSent?: boolean;
+  email?: string;
+  phone?: string;
 }
 
 export const mockJobs: Job[] = [

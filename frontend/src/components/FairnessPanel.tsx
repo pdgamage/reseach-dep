@@ -1,4 +1,3 @@
-import React from 'react';
 import { InfoIcon, ShieldCheckIcon } from 'lucide-react';
 export function FairnessPanel() {
   return (
